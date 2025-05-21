@@ -55,8 +55,9 @@ struct SettingsView: View {
                     Button(action: {
                         isRestoring = true
                         Task {
-                            purchaseModel.restorePurchases()
-                            isRestoring = false
+                            await purchaseModel.restorePurchases { _ in
+                                isRestoring = false
+                            }
                         }
                     }) {
                         HStack {
@@ -75,8 +76,9 @@ struct SettingsView: View {
                         Button("Retry Restore") {
                             isRestoring = true
                             Task {
-                                purchaseModel.restorePurchases()
-                                isRestoring = false
+                                await purchaseModel.restorePurchases { _ in
+                                    isRestoring = false
+                                }
                             }
                         }
                         .accessibilityLabel("Retry Restore Purchases")
@@ -129,11 +131,8 @@ struct SettingsView: View {
             .sheet(isPresented: $showingPaywall) {
                 PurchaseView(isPresented: $showingPaywall, purchaseModel: purchaseModel)
             }
-            .onAppear {
-                print("SettingsView: purchaseModel is \(purchaseModel)")
-                Task {
-                    purchaseModel.fetchOfferings()
-                }
+            .task {
+                await purchaseModel.fetchOfferings()
             }
         }
     }

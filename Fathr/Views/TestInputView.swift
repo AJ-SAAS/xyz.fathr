@@ -1,6 +1,64 @@
 import SwiftUI
 import RevenueCat
 
+// Custom ToggleStyle for minimalistic toggles (black when on)
+struct MinimalToggleStyle: ToggleStyle {
+    func makeBody(configuration: Self.Configuration) -> some View {
+        HStack {
+            configuration.label
+                .font(.caption)
+                .foregroundColor(.gray)
+            Spacer()
+            Capsule()
+                .frame(width: 30, height: 16)
+                .foregroundColor(configuration.isOn ? .black : .gray.opacity(0.3))
+                .overlay(
+                    Circle()
+                        .frame(width: 12, height: 12)
+                        .foregroundColor(.white)
+                        .shadow(radius: 1)
+                        .offset(x: configuration.isOn ? 7 : -7)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isOn)
+                )
+                .onTapGesture {
+                    configuration.isOn.toggle()
+                }
+                .accessibilityLabel(configuration.isOn ? "Checked" : "Unchecked")
+        }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+    }
+}
+
+// Custom ToggleStyle for DNA Fragmentation (green when on)
+struct GreenToggleStyle: ToggleStyle {
+    func makeBody(configuration: Self.Configuration) -> some View {
+        HStack {
+            configuration.label
+                .font(.caption)
+                .foregroundColor(.gray)
+            Spacer()
+            Capsule()
+                .frame(width: 30, height: 16)
+                .foregroundColor(configuration.isOn ? .green : .gray.opacity(0.3))
+                .overlay(
+                    Circle()
+                        .frame(width: 12, height: 12)
+                        .foregroundColor(.white)
+                        .shadow(radius: 1)
+                        .offset(x: configuration.isOn ? 7 : -7)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isOn)
+                )
+                .onTapGesture {
+                    configuration.isOn.toggle()
+                }
+                .accessibilityLabel(configuration.isOn ? "Checked" : "Unchecked")
+        }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+    }
+}
+
 struct TestInputView: View {
     @State private var currentPage: Int = 1
     @State private var appearance: Appearance = .normal
@@ -50,10 +108,10 @@ struct TestInputView: View {
     @State private var hasHeadDefect: Bool = true
     @State private var hasNeckDefect: Bool = true
     @State private var hasTailDefect: Bool = true
+    @State private var showConfirmation: Bool = false
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
-    @State private var showPaywall = false
 
     var body: some View {
         NavigationView {
@@ -68,12 +126,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasAppearance)
+                                .accessibilityLabel("Appearance")
+                                .accessibilityValue(appearance.rawValue.capitalized)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasAppearance)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Liquefaction", selection: $liquefaction) {
@@ -82,12 +140,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasLiquefaction)
+                                .accessibilityLabel("Liquefaction")
+                                .accessibilityValue(liquefaction.rawValue.capitalized)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasLiquefaction)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Consistency", selection: $consistency) {
@@ -96,12 +154,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasConsistency)
+                                .accessibilityLabel("Consistency")
+                                .accessibilityValue(consistency.rawValue.capitalized)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasConsistency)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Semen Quantity (mL)", selection: $semenQuantity) {
@@ -110,12 +168,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasSemenQuantity)
+                                .accessibilityLabel("Semen Quantity")
+                                .accessibilityValue(String(format: "%.1f mL", semenQuantity))
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasSemenQuantity)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("pH", selection: $pH) {
@@ -124,12 +182,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasPH)
+                                .accessibilityLabel("pH")
+                                .accessibilityValue(String(format: "%.1f", pH))
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasPH)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
                         }
                         Section {
                             Text("Fathr is not a medical device. Visualizations are for informational purposes only. Consult a doctor for fertility concerns.")
@@ -143,40 +201,43 @@ struct TestInputView: View {
                                 VStack(alignment: .leading) {
                                     Text("Total Mobility: \(Int(totalMobility))%")
                                     Slider(value: $totalMobility, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Total Mobility")
+                                        .accessibilityValue("\(Int(totalMobility)) percent")
                                 }
                                 .disabled(!hasTotalMobility)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasTotalMobility)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Progressive Mobility: \(Int(progressiveMobility))%")
                                     Slider(value: $progressiveMobility, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Progressive Mobility")
+                                        .accessibilityValue("\(Int(progressiveMobility)) percent")
                                 }
                                 .disabled(!hasProgressiveMobility)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasProgressiveMobility)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Non-Progressive Mobility: \(Int(nonProgressiveMobility))%")
                                     Slider(value: $nonProgressiveMobility, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Non-Progressive Mobility")
+                                        .accessibilityValue("\(Int(nonProgressiveMobility)) percent")
                                 }
                                 .disabled(!hasNonProgressiveMobility)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasNonProgressiveMobility)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Travel Speed (mm/sec)", selection: $travelSpeed) {
@@ -185,38 +246,40 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasTravelSpeed)
+                                .accessibilityLabel("Travel Speed")
+                                .accessibilityValue(String(format: "%.2f mm per second", travelSpeed))
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasTravelSpeed)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Mobility Index: \(Int(mobilityIndex))%")
                                     Slider(value: $mobilityIndex, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Mobility Index")
+                                        .accessibilityValue("\(Int(mobilityIndex)) percent")
                                 }
                                 .disabled(!hasMobilityIndex)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasMobilityIndex)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Still: \(Int(still))%")
                                     Slider(value: $still, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Still")
+                                        .accessibilityValue("\(Int(still)) percent")
                                 }
                                 .disabled(!hasStill)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasStill)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Agglutination", selection: $agglutination) {
@@ -225,12 +288,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasAgglutination)
+                                .accessibilityLabel("Agglutination")
+                                .accessibilityValue(agglutination.rawValue.capitalized)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasAgglutination)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
                         }
                         Section {
                             Text("Fathr is not a medical device. Visualizations are for informational purposes only. Consult a doctor for fertility concerns.")
@@ -247,12 +310,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasSpermConcentration)
+                                .accessibilityLabel("Sperm Concentration")
+                                .accessibilityValue("\(spermConcentration) million per mL")
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasSpermConcentration)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Total Spermatozoa (M/mL)", selection: $totalSpermatozoa) {
@@ -261,12 +324,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasTotalSpermatozoa)
+                                .accessibilityLabel("Total Spermatozoa")
+                                .accessibilityValue("\(totalSpermatozoa) million per mL")
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasTotalSpermatozoa)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Functional Spermatozoa (M/mL)", selection: $functionalSpermatozoa) {
@@ -275,12 +338,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasFunctionalSpermatozoa)
+                                .accessibilityLabel("Functional Spermatozoa")
+                                .accessibilityValue("\(functionalSpermatozoa) million per mL")
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasFunctionalSpermatozoa)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Round Cells (M/mL)", selection: $roundCells) {
@@ -289,12 +352,12 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasRoundCells)
+                                .accessibilityLabel("Round Cells")
+                                .accessibilityValue(String(format: "%.1f million per mL", roundCells))
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasRoundCells)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Picker("Leukocytes (M/mL)", selection: $leukocytes) {
@@ -303,25 +366,26 @@ struct TestInputView: View {
                                     }
                                 }
                                 .disabled(!hasLeukocytes)
+                                .accessibilityLabel("Leukocytes")
+                                .accessibilityValue(String(format: "%.1f million per mL", leukocytes))
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasLeukocytes)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Live Spermatozoa: \(Int(liveSpermatozoa))%")
                                     Slider(value: $liveSpermatozoa, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Live Spermatozoa")
+                                        .accessibilityValue("\(Int(liveSpermatozoa)) percent")
                                 }
                                 .disabled(!hasLiveSpermatozoa)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasLiveSpermatozoa)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
                         }
                         Section {
                             Text("Fathr is not a medical device. Visualizations are for informational purposes only. Consult a doctor for fertility concerns.")
@@ -335,71 +399,78 @@ struct TestInputView: View {
                                 VStack(alignment: .leading) {
                                     Text("Morphology Rate: \(Int(morphologyRate))%")
                                     Slider(value: $morphologyRate, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Morphology Rate")
+                                        .accessibilityValue("\(Int(morphologyRate)) percent")
                                 }
                                 .disabled(!hasMorphologyRate)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasMorphologyRate)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Pathology: \(Int(pathology))%")
                                     Slider(value: $pathology, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Pathology")
+                                        .accessibilityValue("\(Int(pathology)) percent")
                                 }
                                 .disabled(!hasPathology)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasPathology)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Head Defect: \(Int(headDefect))%")
                                     Slider(value: $headDefect, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Head Defect")
+                                        .accessibilityValue("\(Int(headDefect)) percent")
                                 }
                                 .disabled(!hasHeadDefect)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasHeadDefect)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Neck Defect: \(Int(neckDefect))%")
                                     Slider(value: $neckDefect, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Neck Defect")
+                                        .accessibilityValue("\(Int(neckDefect)) percent")
                                 }
                                 .disabled(!hasNeckDefect)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasNeckDefect)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading) {
                                     Text("Tail Defect: \(Int(tailDefect))%")
                                     Slider(value: $tailDefect, in: 0...100, step: 1)
+                                        .tint(.black)
+                                        .accessibilityLabel("Tail Defect")
+                                        .accessibilityValue("\(Int(tailDefect)) percent")
                                 }
                                 .disabled(!hasTailDefect)
                                 Toggle("I haven’t had this test / Not sure", isOn: $hasTailDefect)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .toggleStyle(.switch)
+                                    .toggleStyle(MinimalToggleStyle())
                             }
-                            .padding(.vertical, 8)
-
+                            .padding(.vertical, 4)
+                        }
+                        Section(header: Text("DNA Fragmentation").font(.headline).fontDesign(.rounded)) {
                             Toggle("Estimate DNA Fragmentation Risk", isOn: $estimateDNA)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .toggleStyle(.switch)
+                                .font(.subheadline)
+                                .foregroundColor(.black)
+                                .toggleStyle(GreenToggleStyle())
+                                .padding(.vertical, 4)
                         }
                         Section {
                             Text("Fathr is not a medical device. Visualizations are for informational purposes only. Consult a doctor for fertility concerns.")
@@ -431,7 +502,7 @@ struct TestInputView: View {
                         .accessibilityLabel("Next page")
                     } else {
                         Button("Submit") {
-                            submitTest()
+                            showConfirmation = true
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
@@ -441,15 +512,21 @@ struct TestInputView: View {
                 .padding(.horizontal)
                 .padding(.bottom)
             }
-            .navigationTitle("Add Test Results - Page \(currentPage)/4")
+            .navigationTitle("Add Test - Page \(currentPage)/4")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                     .accessibilityLabel("Cancel test input")
                 }
             }
-            .sheet(isPresented: $showPaywall) {
-                PurchaseView(isPresented: $showPaywall, purchaseModel: purchaseModel)
+            .alert("Submit Test", isPresented: $showConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Submit") {
+                    submitTest()
+                }
+            } message: {
+                Text("Are you sure you want to submit your test results? You can view detailed analysis after submission, but some features may require a subscription.")
             }
         }
     }
@@ -490,11 +567,6 @@ struct TestInputView: View {
         print("Submitting test: Appearance=\(String(describing: newTest.appearance)), SemenQuantity=\(String(describing: newTest.semenQuantity)), Date=\(newTest.date)")
         testStore.addTest(newTest)
         print("Test submitted")
-
-        if !purchaseModel.isSubscribed && !UserDefaults.standard.bool(forKey: "hasShownPaywall") {
-            showPaywall = true
-            UserDefaults.standard.set(true, forKey: "hasShownPaywall")
-        }
 
         dismiss()
     }

@@ -11,14 +11,14 @@ struct Sperm_Test_Results_AppApp: App {
     @StateObject private var purchaseModel = PurchaseModel()
 
     init() {
-        // Debug: Reset UserDefaults for testing
-        UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
-        UserDefaults.standard.removeObject(forKey: "lastTipDate")
+        // Note: Remove these UserDefaults resets in production to preserve user state
+        // UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+        // UserDefaults.standard.removeObject(forKey: "lastTipDate")
 
         // Initialize Firebase
         FirebaseApp.configure()
-        Analytics.setAnalyticsCollectionEnabled(false)
-        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(false)
+        Analytics.setAnalyticsCollectionEnabled(false) // Consider enabling in production
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(false) // Consider enabling in production
 
         // Initialize RevenueCat
         Purchases.configure(withAPIKey: "appl_rhIxpzSZfMAgajJHLURLcNHmThg")

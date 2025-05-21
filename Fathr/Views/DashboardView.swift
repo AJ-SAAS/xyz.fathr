@@ -1,36 +1,57 @@
 import SwiftUI
 
+// Move Trend enum to file level to ensure accessibility
+enum Trend {
+    case up, down, none
+}
+
 struct DashboardView: View {
     @EnvironmentObject var testStore: TestStore
+    @EnvironmentObject var purchaseModel: PurchaseModel
     @State private var showInput = false
+    @State private var showPaywall = false
     @AppStorage("lastTipDate") private var lastTipDate: String = ""
     @State private var checkedTips: [Int: Bool] = [:]
-    @Binding var selectedTab: Int // Added for tab navigation
+    @Binding var selectedTab: Int
+    @State private var showFullAnalysis = false
+    @State private var selectedTest: TestData?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     WelcomeHeaderView(showInput: $showInput)
-                    FertilitySnapshotView(selectedTab: $selectedTab)
                     
-                    // New Cards: Winning and Improvement
-                    if !testStore.tests.isEmpty, let latestTest = testStore.tests.first {
-                        let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
-                        MetricCardView(
-                            title: "Where You Are Winning",
-                            metrics: winningMetrics,
-                            isWinning: true
+                    // Show premium content only if tests exist
+                    if !testStore.tests.isEmpty {
+                        FertilitySnapshotView(
+                            selectedTab: $selectedTab,
+                            showPaywall: $showPaywall,
+                            showFullAnalysis: $showFullAnalysis
                         )
-                        MetricCardView(
-                            title: "Where You Can Improve",
-                            metrics: improvementMetrics,
-                            isWinning: false
+                        
+                        CoreMetricsOverviewView()
+                        
+                        RecentTestsSection(
+                            selectedTab: $selectedTab,
+                            showPaywall: $showPaywall,
+                            selectedTest: $selectedTest
                         )
-                    }
-                    
-                    RecentTestsView()
-                    if testStore.tests.count > 0 {
+                        
+                        if let latestTest = testStore.tests.first {
+                            let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
+                            MetricCardView(
+                                title: "Where You Are Winning",
+                                metrics: winningMetrics,
+                                isWinning: true
+                            )
+                            MetricCardView(
+                                title: "Where You Can Improve",
+                                metrics: improvementMetrics,
+                                isWinning: false
+                            )
+                        }
+                        
                         DailyBoostTipsView(
                             checkedTips: checkedTips,
                             onTipToggle: { index in
@@ -38,6 +59,7 @@ struct DashboardView: View {
                             }
                         )
                     }
+                    
                     DisclaimerView()
                 }
                 .padding(.vertical)
@@ -47,9 +69,32 @@ struct DashboardView: View {
             .sheet(isPresented: $showInput) {
                 TestInputView()
                     .environmentObject(testStore)
+                    .environmentObject(purchaseModel)
+            }
+            .sheet(isPresented: $showPaywall) {
+                PurchaseView(isPresented: $showPaywall, purchaseModel: purchaseModel)
+            }
+            .navigationDestination(isPresented: $showFullAnalysis) {
+                if let latestTest = testStore.tests.first {
+                    ResultsView(test: latestTest)
+                        .environmentObject(purchaseModel)
+                }
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { selectedTest != nil },
+                set: { if !$0 { selectedTest = nil } }
+            )) {
+                if let test = selectedTest {
+                    ResultsView(test: test)
+                        .environmentObject(purchaseModel)
+                }
             }
             .onAppear {
                 updateDailyTips()
+                print("DashboardView: testStore.tests count: \(testStore.tests.count)")
+                for test in testStore.tests {
+                    print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus), overallStatus: \(test.overallStatus), Date: \(test.date), Concentration: \(test.spermConcentration ?? 0), Motility: \(test.totalMobility ?? 0)")
+                }
             }
             .onChange(of: lastTipDate) {
                 updateDailyTips()
@@ -61,7 +106,6 @@ struct DashboardView: View {
         var winningMetrics: [String] = []
         var improvementMetrics: [String] = []
 
-        // Motility
         let motility = test.totalMobility ?? 0.0
         if motility >= 40 {
             winningMetrics.append("Motility: \(Int(motility))% (Great movement!)")
@@ -69,7 +113,6 @@ struct DashboardView: View {
             improvementMetrics.append("Motility: \(Int(motility))% (Aim for ≥ 40%)")
         }
 
-        // Concentration
         let concentration = test.spermConcentration ?? 0.0
         if concentration >= 15 {
             winningMetrics.append("Concentration: \(Int(concentration)) million/mL (Strong count!)")
@@ -77,7 +120,6 @@ struct DashboardView: View {
             improvementMetrics.append("Concentration: \(Int(concentration)) million/mL (Aim for ≥ 15 million/mL)")
         }
 
-        // Morphology
         let morphology = test.morphologyRate ?? 0.0
         if morphology >= 4 {
             winningMetrics.append("Morphology: \(Int(morphology))% normal forms (Solid structure!)")
@@ -85,9 +127,7 @@ struct DashboardView: View {
             improvementMetrics.append("Morphology: \(Int(morphology))% normal forms (Aim for ≥ 4%)")
         }
 
-        // Sperm Analysis
-        let analysisScore = mapAnalysisStatusToScore(test.analysisStatus)
-        if analysisScore >= 80 {
+        if test.analysisStatus == "Typical" {
             winningMetrics.append("Sperm Analysis: Typical (Excellent overall health!)")
         } else {
             improvementMetrics.append("Sperm Analysis: \(test.analysisStatus) (Consult a specialist)")
@@ -104,119 +144,6 @@ struct DashboardView: View {
         if lastTipDate != currentDate {
             checkedTips = [:]
             lastTipDate = currentDate
-        }
-    }
-
-    private func getDailyTips() -> [Int] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let currentDate = formatter.string(from: Date())
-        
-        let seed = currentDate.hashValue
-        var random = SeededRandomGenerator(seed: seed)
-        var indices = Array(0..<DailyBoostTips.tips.count)
-        var selectedIndices: [Int] = []
-        
-        for _ in 0..<3 {
-            guard !indices.isEmpty else { break }
-            let randomIndex = Int(random.next() % UInt64(indices.count))
-            selectedIndices.append(indices.remove(at: randomIndex))
-        }
-        
-        return selectedIndices.sorted()
-    }
-
-    private func formattedDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMMM d"
-        return formatter.string(from: Date())
-    }
-
-    private struct Averages {
-        let overallScore: Int
-        let motility: Int
-        let concentration: Int
-        let morphology: Int
-        let dnaFragmentation: Int?
-        let spermAnalysis: Int
-    }
-
-    private func calculateAverages() -> Averages {
-        let count = testStore.tests.count
-        guard count > 0 else {
-            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: nil, spermAnalysis: 0)
-        }
-        
-        let totalMotility = testStore.tests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = testStore.tests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = testStore.tests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        
-        let dnaScores = testStore.tests.map { test in
-            test.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
-        }
-        let totalDnaFragmentation = dnaScores.reduce(0, +)
-        
-        let totalSpermAnalysis = testStore.tests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let avgMotility = totalMotility / count
-        let avgConcentration = totalConcentration / count
-        let avgMorphology = totalMorphology / count
-        let avgDnaFragmentation = totalDnaFragmentation / count
-        let avgSpermAnalysis = totalSpermAnalysis / count
-        
-        let scores = [avgMotility, avgConcentration, avgMorphology, avgDnaFragmentation, avgSpermAnalysis]
-        let overallScore = scores.reduce(0, +) / scores.count
-        
-        return Averages(
-            overallScore: overallScore,
-            motility: avgMotility,
-            concentration: avgConcentration,
-            morphology: avgMorphology,
-            dnaFragmentation: avgDnaFragmentation,
-            spermAnalysis: avgSpermAnalysis
-        )
-    }
-
-    private func calculateTrend() -> TrackView.Trend {
-        guard testStore.tests.count > 1 else { return .none }
-        
-        let latestTest = testStore.tests[0]
-        let motilityScore = Int(latestTest.totalMobility ?? 0.0)
-        let concentrationScore = Int((latestTest.spermConcentration ?? 0.0) / 100 * 100)
-        let morphologyScore = Int(latestTest.morphologyRate ?? 0.0)
-        let dnaScore = latestTest.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
-        let analysisScore = mapAnalysisStatusToScore(latestTest.analysisStatus)
-        
-        let currentScores = [
-            motilityScore,
-            concentrationScore,
-            morphologyScore,
-            dnaScore,
-            analysisScore
-        ]
-        let currentOverall = currentScores.reduce(0, +) / currentScores.count
-        
-        let previousTests = Array(testStore.tests.dropFirst())
-        let prevCount = previousTests.count
-        
-        let totalMotility = previousTests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = previousTests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = previousTests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        let totalDna = previousTests.reduce(0) { $0 + ($1.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80) }
-        let totalAnalysis = previousTests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let previousOverall = (totalMotility + totalConcentration + totalMorphology + totalDna + totalAnalysis) / (prevCount * 5)
-        
-        if currentOverall > previousOverall { return .up }
-        if currentOverall < previousOverall { return .down }
-        return .none
-    }
-
-    private func mapAnalysisStatusToScore(_ status: String) -> Int {
-        switch status.lowercased() {
-        case "typical": return 80
-        case "atypical": return 40
-        default: return 50
         }
     }
 }
@@ -262,7 +189,10 @@ struct WelcomeHeaderView: View {
 
 struct FertilitySnapshotView: View {
     @EnvironmentObject var testStore: TestStore
+    @EnvironmentObject var purchaseModel: PurchaseModel
     @Binding var selectedTab: Int
+    @Binding var showPaywall: Bool
+    @Binding var showFullAnalysis: Bool
 
     var body: some View {
         if !testStore.tests.isEmpty {
@@ -274,11 +204,18 @@ struct FertilitySnapshotView: View {
                         .font(.headline)
                         .fontDesign(.rounded)
                         .foregroundColor(.black)
-                    OverallScoreCard(
-                        overallScore: averages.overallScore,
-                        trend: trend
-                    )
+                    VStack {
+                        Text(String(format: "%.1f", averages.overallScore))
+                            .font(.largeTitle.bold())
+                            .foregroundColor(.black)
+                        Text(trend == .up ? "↑ Improving" : trend == .down ? "↓ Declining" : "– Stable")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: 160)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(15)
                 }
                 .frame(maxWidth: .infinity)
                 VStack(alignment: .leading, spacing: 12) {
@@ -286,19 +223,25 @@ struct FertilitySnapshotView: View {
                         .font(.headline)
                         .fontDesign(.rounded)
                         .foregroundColor(.black)
-                    Button(action: {
-                        selectedTab = 1
-                    }) {
-                        Text("View Full Report >")
-                            .font(.subheadline.bold())
-                            .fontDesign(.rounded)
-                            .foregroundColor(.white)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(Color.blue)
-                            .cornerRadius(8)
+                    if testStore.tests.first != nil {
+                        Button(action: {
+                            if purchaseModel.isSubscribed {
+                                showFullAnalysis = true
+                            } else {
+                                showPaywall = true
+                            }
+                        }) {
+                            Text("View Full Analysis")
+                                .font(.subheadline.bold())
+                                .fontDesign(.rounded)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                        }
+                        .accessibilityLabel("View Full Analysis")
                     }
-                    .accessibilityLabel("View Full Report")
                 }
                 .padding()
                 .background(Color.white)
@@ -311,39 +254,46 @@ struct FertilitySnapshotView: View {
     }
 
     private struct Averages {
-        let overallScore: Int
-        let motility: Int
-        let concentration: Int
-        let morphology: Int
-        let dnaFragmentation: Int?
-        let spermAnalysis: Int
+        let overallScore: Double
+        let motility: Double
+        let concentration: Double
+        let morphology: Double
+        let dnaFragmentation: Double
+        let spermAnalysis: Double
     }
 
     private func calculateAverages() -> Averages {
         let count = testStore.tests.count
         guard count > 0 else {
-            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: nil, spermAnalysis: 0)
+            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: 0, spermAnalysis: 0)
         }
 
-        let totalMotility = testStore.tests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = testStore.tests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = testStore.tests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-
-        let dnaScores = testStore.tests.map { test in
-            test.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
+        let totalMotility = testStore.tests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
+        let totalConcentration = testStore.tests.reduce(0.0) {
+            let conc = $1.spermConcentration ?? 0.0
+            let score = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+            return $0 + min(score, 100.0)
         }
-        let totalDnaFragmentation = dnaScores.reduce(0, +)
+        let totalMorphology = testStore.tests.reduce(0.0) {
+            let morph = $1.morphologyRate ?? 0.0
+            let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalDnaFragmentation = testStore.tests.reduce(0.0) {
+            let dna = Double($1.dnaFragmentationRisk ?? 0)
+            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            return $0 + score
+        }
+        let totalSpermAnalysis = testStore.tests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
 
-        let totalSpermAnalysis = testStore.tests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
+        let avgMotility = totalMotility / Double(count)
+        let avgConcentration = totalConcentration / Double(count)
+        let avgMorphology = totalMorphology / Double(count)
+        let avgDnaFragmentation = totalDnaFragmentation / Double(count)
+        let avgSpermAnalysis = totalSpermAnalysis / Double(count)
 
-        let avgMotility = totalMotility / count
-        let avgConcentration = totalConcentration / count
-        let avgMorphology = totalMorphology / count
-        let avgDnaFragmentation = totalDnaFragmentation / count
-        let avgSpermAnalysis = totalSpermAnalysis / count
-
-        let scores = [avgMotility, avgConcentration, avgMorphology, avgDnaFragmentation, avgSpermAnalysis]
-        let overallScore = scores.reduce(0, +) / scores.count
+        let overallScore = (0.35 * avgMotility) + (0.30 * avgConcentration) + (0.15 * avgMorphology) +
+                           (0.10 * avgDnaFragmentation) + (0.10 * avgSpermAnalysis)
 
         return Averages(
             overallScore: overallScore,
@@ -355,96 +305,298 @@ struct FertilitySnapshotView: View {
         )
     }
 
-    private func calculateTrend() -> TrackView.Trend {
+    private func calculateAnalysisScore(_ test: TestData) -> Double {
+        var score: Double = 0
+        
+        if test.appearance == .normal { score += 25 }
+        if test.liquefaction == .normal { score += 25 }
+        if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
+        if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
+        
+        return score
+    }
+
+    private func calculateTrend() -> Trend {
         guard testStore.tests.count > 1 else { return .none }
 
         let latestTest = testStore.tests[0]
-        let motilityScore = Int(latestTest.totalMobility ?? 0.0)
-        let concentrationScore = Int((latestTest.spermConcentration ?? 0.0) / 100 * 100)
-        let morphologyScore = Int(latestTest.morphologyRate ?? 0.0)
-        let dnaScore = latestTest.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
-        let analysisScore = mapAnalysisStatusToScore(latestTest.analysisStatus)
+        let motilityScore = min((latestTest.totalMobility ?? 0.0) * 2.5, 100.0)
+        let concentrationScore: Double = {
+            let conc = latestTest.spermConcentration ?? 0.0
+            return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+        }()
+        let morphologyScore: Double = {
+            let morph = latestTest.morphologyRate ?? 0.0
+            return morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+        }()
+        let dnaScore = max(100.0 - (((Double(latestTest.dnaFragmentationRisk ?? 0)) / 15.0) * 50.0), 0.0)
+        let analysisScore = calculateAnalysisScore(latestTest)
         
-        let currentScores = [
-            motilityScore,
-            concentrationScore,
-            morphologyScore,
-            dnaScore,
-            analysisScore
-        ]
-        let currentOverall = currentScores.reduce(0, +) / currentScores.count
+        let currentOverall = (0.35 * motilityScore) + (0.30 * concentrationScore) + (0.15 * morphologyScore) +
+                             (0.10 * dnaScore) + (0.10 * analysisScore)
 
         let previousTests = Array(testStore.tests.dropFirst())
-        let prevCount = previousTests.count
+        let prevCount = Double(previousTests.count)
 
-        let totalMotility = previousTests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = previousTests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = previousTests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        let totalDna = previousTests.reduce(0) { $0 + ($1.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80) }
-        let totalAnalysis = previousTests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
+        let totalMotility = previousTests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
+        let totalConcentration = previousTests.reduce(0.0) {
+            let conc = $1.spermConcentration ?? 0.0
+            let score = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalMorphology = previousTests.reduce(0.0) {
+            let morph = $1.morphologyRate ?? 0.0
+            let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalDna = previousTests.reduce(0.0) {
+            let dna = Double($1.dnaFragmentationRisk ?? 0)
+            return $0 + max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+        }
+        let totalAnalysis = previousTests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
 
-        let previousOverall = (totalMotility + totalConcentration + totalMorphology + totalDna + totalAnalysis) / (prevCount * 5)
+        let previousOverall = (
+            (0.35 * (totalMotility / prevCount)) +
+            (0.30 * (totalConcentration / prevCount)) +
+            (0.15 * (totalMorphology / prevCount)) +
+            (0.10 * (totalDna / prevCount)) +
+            (0.10 * (totalAnalysis / prevCount))
+        )
 
         if currentOverall > previousOverall { return .up }
         if currentOverall < previousOverall { return .down }
         return .none
     }
+}
 
-    private func mapAnalysisStatusToScore(_ status: String) -> Int {
-        switch status.lowercased() {
-        case "typical": return 80
-        case "atypical": return 40
-        default: return 50
+struct CoreMetricsOverviewView: View {
+    @EnvironmentObject var testStore: TestStore
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("How You're Doing")
+                .font(.title2)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .foregroundColor(.black)
+                .padding(.horizontal)
+            
+            if let latestTest = testStore.tests.first {
+                ProgressBarView(
+                    label: "Analysis",
+                    value: calculateAnalysisScore(latestTest),
+                    maxValue: 100
+                )
+                
+                ProgressBarView(
+                    label: "Motility",
+                    value: latestTest.totalMobility ?? 0,
+                    maxValue: 100
+                )
+                
+                ProgressBarView(
+                    label: "Concentration",
+                    value: min(latestTest.spermConcentration ?? 0, 100),
+                    maxValue: 100
+                )
+                
+                ProgressBarView(
+                    label: "Morphology",
+                    value: latestTest.morphologyRate ?? 0,
+                    maxValue: 100
+                )
+                
+                Text("Scores are based on WHO standards and your most recent test.")
+                    .font(.caption)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+            } else {
+                Text("No test data available.")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
+    private func calculateAnalysisScore(_ test: TestData) -> Double {
+        var score: Double = 0
+        
+        if test.appearance == .normal { score += 25 }
+        if test.liquefaction == .normal { score += 25 }
+        if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
+        if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
+        
+        return score
+    }
+}
+
+struct ProgressBarView: View {
+    let label: String
+    let value: Double
+    let maxValue: Double
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.black)
+                Spacer()
+                Text("\(Int(value))/100")
+                    .font(.subheadline)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.black)
+            }
+            ProgressView(value: value, total: maxValue)
+                .progressViewStyle(.linear)
+                .tint(.black)
+                .background(Color.gray.opacity(0.2))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .padding(.horizontal)
+    }
+}
+
+struct RecentTestsSection: View {
+    @EnvironmentObject var testStore: TestStore
+    @EnvironmentObject var purchaseModel: PurchaseModel
+    @Binding var selectedTab: Int
+    @Binding var showPaywall: Bool
+    @Binding var selectedTest: TestData?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Recent Logs")
+                .font(.title2)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+
+            if testStore.tests.isEmpty {
+                VStack(spacing: 8) {
+                    Text("No tests available.")
+                        .font(.subheadline)
+                        .fontDesign(.rounded)
+                        .foregroundColor(.gray)
+                    Text("Tap the + button above to add your first test.")
+                        .font(.subheadline)
+                        .fontDesign(.rounded)
+                        .foregroundColor(.gray.opacity(0.8))
+                }
+                .padding(.horizontal)
+            } else {
+                ForEach(testStore.tests.prefix(5)) { test in
+                    Button(action: {
+                        if purchaseModel.isSubscribed {
+                            selectedTest = test
+                        } else {
+                            showPaywall = true
+                        }
+                    }) {
+                        TestCardView(test: test)
+                    }
+                    .padding(.horizontal)
+                }
+                .onAppear {
+                    print("RecentTestsSection: \(testStore.tests.count) tests")
+                    for test in testStore.tests {
+                        print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus), overallStatus: \(test.overallStatus), Date: \(test.date), Concentration: \(test.spermConcentration ?? 0), Motility: \(test.totalMobility ?? 0)")
+                    }
+                }
+                if testStore.tests.count > 5 {
+                    Button(action: {
+                        if purchaseModel.isSubscribed {
+                            selectedTab = 1
+                        } else {
+                            showPaywall = true
+                        }
+                    }) {
+                        Text("View All Results")
+                            .font(.subheadline.bold())
+                            .fontDesign(.rounded)
+                            .foregroundColor(.blue)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .padding(.horizontal)
+                    .accessibilityLabel("View all test results")
+                }
+            }
         }
     }
 }
 
-struct RecentTestsView: View {
-    @EnvironmentObject var testStore: TestStore
+struct TestCardView: View {
+    let test: TestData
 
     var body: some View {
-        Text("Recent Tests")
-            .font(.title2)
-            .fontDesign(.rounded)
-            .fontWeight(.bold)
-            .padding(.horizontal)
-
-        if testStore.tests.isEmpty {
-            VStack(spacing: 8) {
-                Text("No tests available.")
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: statusIcon(for: test.analysisStatus))
+                .foregroundColor(statusColor(for: test.analysisStatus))
+                .font(.system(size: 18))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(formattedDate(test.date))
+                    .font(.headline)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.black)
+                Text(statusLabel(for: test.analysisStatus))
                     .font(.subheadline)
+                    .fontDesign(.rounded)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(statusColor(for: test.analysisStatus).opacity(0.2))
+                    .foregroundColor(statusColor(for: test.analysisStatus))
+                    .cornerRadius(6)
+                Text("Count: \(Int(test.spermConcentration ?? 0)) M/mL • Motility: \(Int(test.totalMobility ?? 0))%")
+                    .font(.caption)
                     .fontDesign(.rounded)
                     .foregroundColor(.gray)
-                Text("Tap the + button above to add your first test.")
-                    .font(.subheadline)
-                    .fontDesign(.rounded)
-                    .foregroundColor(.gray.opacity(0.8))
             }
-            .padding(.horizontal)
-        } else {
-            ForEach(testStore.tests.prefix(3)) { test in
-                NavigationLink(destination: ResultsView(test: test)) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text(test.dateFormatted)
-                                .font(.headline)
-                                .fontDesign(.rounded)
-                                .foregroundColor(.black)
-                            Text("• \(test.overallStatus)")
-                                .font(.subheadline)
-                                .fontDesign(.rounded)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white)
-                    .cornerRadius(10)
-                    .shadow(radius: 2)
-                }
-                .padding(.horizontal)
-            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundColor(.gray)
+                .font(.system(size: 14))
         }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(radius: 2)
+    }
+
+    private func statusLabel(for status: String) -> String {
+        switch status.lowercased() {
+        case "typical": return "Healthy"
+        case "atypical": return "Needs Attention"
+        default: return "Unknown"
+        }
+    }
+
+    private func statusColor(for status: String) -> Color {
+        switch status.lowercased() {
+        case "typical": return .green
+        case "atypical": return .orange
+        default: return .gray
+        }
+    }
+
+    private func statusIcon(for status: String) -> String {
+        switch status.lowercased() {
+        case "typical": return "checkmark.seal.fill"
+        case "atypical": return "exclamationmark.triangle.fill"
+        default: return "questionmark.circle.fill"
+        }
+    }
+
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let relativeDate = formatter.localizedString(for: date, relativeTo: Date())
+        return relativeDate == "in 0 seconds" ? "Today" : relativeDate.capitalized
     }
 }
 
@@ -630,7 +782,40 @@ struct SeededRandomGenerator {
 
 struct DashboardView_Previews: PreviewProvider {
     static var previews: some View {
-        DashboardView(selectedTab: .constant(0))
-            .environmentObject(TestStore())
+        let testStore = TestStore()
+        testStore.tests = [
+            TestData(
+                id: UUID().uuidString,
+                appearance: .normal,
+                liquefaction: .normal,
+                consistency: .medium,
+                semenQuantity: 2.0,
+                pH: 7.4,
+                totalMobility: 80.0,
+                progressiveMobility: 40.0,
+                nonProgressiveMobility: 10.0,
+                travelSpeed: 0.1,
+                mobilityIndex: 60.0,
+                still: 30.0,
+                agglutination: .mild,
+                spermConcentration: 20.0,
+                totalSpermatozoa: 40.0,
+                functionalSpermatozoa: 15.0,
+                roundCells: 0.5,
+                leukocytes: 0.2,
+                liveSpermatozoa: 70.0,
+                morphologyRate: 5.0,
+                pathology: 10.0,
+                headDefect: 3.0,
+                neckDefect: 2.0,
+                tailDefect: 1.0,
+                date: Date(),
+                dnaFragmentationRisk: 10,
+                dnaRiskCategory: "Low"
+            )
+        ]
+        return DashboardView(selectedTab: .constant(0))
+            .environmentObject(testStore)
+            .environmentObject(PurchaseModel())
     }
 }

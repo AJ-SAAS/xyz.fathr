@@ -25,14 +25,14 @@ struct PurchaseView: View {
             }
 
             // App icon or family image
-            Image(systemName: "person.2.fill")
+            Image(systemName: "heart.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.blue)
                 .padding(.top, 20)
                 .padding(.bottom, 16)
 
             // Headline
-            Text("Unlock Fathr to reach your goals faster.")
+            Text("Unlock Your Fertility Insights with Fathr")
                 .font(.title2)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
@@ -40,7 +40,7 @@ struct PurchaseView: View {
                 .padding(.bottom, 8)
 
             // Subtext
-            Text("Upgrade to unlock everything Fathr has to offer:")
+            Text("Get full access to your test results, personalized insights, and progress tracking.")
                 .font(.subheadline)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -49,9 +49,9 @@ struct PurchaseView: View {
 
             // Features list
             VStack(alignment: .leading, spacing: 16) {
-                FeatureRow(text: "Easy sperm test logging", subtext: "Log and track your results with just a click")
-                FeatureRow(text: "Build confidence through clarity", subtext: "Simple insights to help you understand your progress")
-                FeatureRow(text: "Track your journey", subtext: "Stay on course with personalized reminders and progress updates")
+                FeatureRow(text: "Detailed Test Analysis", subtext: "Understand your sperm health with in-depth metrics")
+                FeatureRow(text: "Track Progress Over Time", subtext: "Monitor trends to stay on top of your fertility goals")
+                FeatureRow(text: "Personalized Recommendations", subtext: "Daily tips tailored to improve your results")
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 32)
@@ -63,7 +63,9 @@ struct PurchaseView: View {
                         .foregroundColor(.red)
                     Button("Retry") {
                         errorMessage = nil
-                        purchaseModel.fetchOfferings()
+                        Task {
+                            await purchaseModel.fetchOfferings()
+                        }
                     }
                 }
                 .padding()
@@ -74,7 +76,7 @@ struct PurchaseView: View {
                         title: "Yearly Plan",
                         price: offering.annual?.storeProduct.localizedPriceString ?? "$59.99 per year",
                         crossedOutPrice: "$311.48",
-                        badgeText: "SAVE 90%",
+                        badgeText: "BEST VALUE",
                         isSelected: selectedPackage?.identifier == offering.annual?.identifier,
                         isWeeklyPlan: false,
                         action: {
@@ -86,9 +88,9 @@ struct PurchaseView: View {
 
                     // Weekly Plan with Trial
                     PackageButton(
-                        title: "3-Day Trial",
+                        title: "3-Day Free Trial",
                         price: "then \(offering.monthly?.storeProduct.localizedPriceString ?? "$5.99") per week",
-                        badgeText: "FREE",
+                        badgeText: "TRY FREE",
                         isSelected: selectedPackage?.identifier == offering.monthly?.identifier,
                         isWeeklyPlan: true,
                         action: {
@@ -143,11 +145,15 @@ struct PurchaseView: View {
                 Button(action: {
                     if let package = selectedPackage {
                         isPurchasing = true
-                        purchaseModel.purchase(package: package)
+                        Task {
+                            await purchaseModel.purchase(package: package) { _ in
+                                isPurchasing = false
+                            }
+                        }
                     }
                 }) {
                     HStack {
-                        Text(isPurchasing ? "Processing..." : "Start My Journey")
+                        Text(isPurchasing ? "Processing..." : "Unlock Fathr Now")
                         if !isPurchasing {
                             Image(systemName: "chevron.right")
                         }
@@ -156,7 +162,7 @@ struct PurchaseView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(selectedPackage == nil || isPurchasing ? Color.gray : Color.black)
+                    .background(selectedPackage == nil || isPurchasing ? Color.gray : Color.blue)
                     .cornerRadius(10)
                 }
                 .disabled(selectedPackage == nil || isPurchasing)
@@ -172,7 +178,11 @@ struct PurchaseView: View {
             HStack(spacing: 16) {
                 Button("Restore Purchases") {
                     isPurchasing = true
-                    purchaseModel.restorePurchases()
+                    Task {
+                        await purchaseModel.restorePurchases { _ in
+                            isPurchasing = false
+                        }
+                    }
                 }
                 Link("Terms of Use", destination: URL(string: "https://www.fathr.xyz/r/terms")!)
                 Link("Privacy Policy", destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
@@ -185,9 +195,20 @@ struct PurchaseView: View {
             Spacer()
         }
         .onAppear {
-            purchaseModel.fetchOfferings()
+            Task {
+                await purchaseModel.fetchOfferings()
+                // Preselect the yearly plan for better UX
+                if let offering = purchaseModel.currentOffering, let yearly = offering.annual {
+                    selectedPackage = yearly
+                }
+            }
         }
-        .onChange(of: purchaseModel.errorMessage) { oldValue, newValue in
+        .onChange(of: purchaseModel.isSubscribed) { _, newValue in
+            if newValue {
+                isPresented = false
+            }
+        }
+        .onChange(of: purchaseModel.errorMessage) { _, newValue in
             errorMessage = newValue
         }
     }
@@ -247,20 +268,14 @@ struct PackageButton: View {
                     }
                     Spacer()
                     if let badgeText = badgeText {
-                        if isWeeklyPlan {
-                            Text(badgeText)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.black)
-                        } else {
-                            Text(badgeText)
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.red)
-                                .cornerRadius(4)
-                        }
+                        Text(badgeText)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(isWeeklyPlan ? Color.green : Color.blue)
+                            .cornerRadius(4)
                     }
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")

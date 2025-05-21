@@ -4,72 +4,83 @@ import FirebaseAuth
 struct OnboardingView: View {
     @State private var step = 0
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
-    @State private var exerciseFrequency: String = ""
-    @State private var dietQuality: String = ""
-    @State private var sleepHours: Double = 7.0
+
+    // User input states
+    @State private var goal: String = ""
+    @State private var situation: String = ""
+    @State private var ageGroup: String = ""
+    @State private var energyLevel: String = ""
     @State private var stressLevel: String = ""
+    @State private var uploadedTest: Bool = false
+    @State private var improvements: [String] = []
+    @State private var previousEfforts: [String] = []
+    @State private var trackingMethods: [String] = []
+
+    var onComplete: () -> Void
 
     var body: some View {
-        VStack {
-            Text("Step \(step + 1) of 6")
-                .font(.subheadline)
-                .padding(.bottom)
-
-            if step > 0 {
-                Button(action: {
-                    step -= 1
-                }) {
-                    Text("Back")
-                        .padding()
-                        .foregroundColor(.black)
+        VStack(spacing: 24) {
+            // Header with Back button
+            HStack {
+                if step > 0 {
+                    Button(action: { step -= 1 }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.black)
+                            .accessibilityLabel("Go back to previous step")
+                    }
+                } else {
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel("Go back to previous step")
+                Spacer()
             }
+            .padding(.horizontal)
 
+            // Progress Bar: 11 steps (0 to 10)
+            ProgressView(value: Double(step), total: 10)
+                .progressViewStyle(LinearProgressViewStyle())
+                .tint(.black)
+                .padding(.horizontal)
+
+            // Onboarding steps
             switch step {
             case 0:
-                WelcomeScreen(onNext: { step += 1 })
+                OB3_GoalView(selectedOption: $goal, onNext: { step += 1 })
             case 1:
-                Question1View(selectedOption: $exerciseFrequency, onNext: { step += 1 })
+                OB4_SituationView(selectedOption: $situation, onNext: { step += 1 })
             case 2:
-                Question2View(selectedOption: $dietQuality, onNext: { step += 1 })
+                OB5_AgeGroupView(selectedOption: $ageGroup, onNext: { step += 1 })
             case 3:
-                Question3View(sleepHours: $sleepHours, onNext: { step += 1 })
+                OB6_EnergyLevelView(selectedOption: $energyLevel, onNext: { step += 1 })
             case 4:
-                Question4View(selectedOption: $stressLevel, onNext: { step += 1 })
+                OB7_StressLevelView(selectedOption: $stressLevel, onNext: { step += 1 })
             case 5:
-                MotivationView(
-                    exerciseFrequency: exerciseFrequency,
-                    dietQuality: dietQuality,
-                    sleepHours: sleepHours,
-                    stressLevel: stressLevel,
-                    onNext: {
-                        hasCompletedOnboarding = true
-                    }
-                )
+                OB10_PreviousEffortsView(selectedOptions: $previousEfforts, onNext: { step += 1 })
+            case 6:
+                OB11_ImpactView(onNext: { step += 1 })
+            case 7:
+                OB12_LoadingView(onNext: { step += 1 })
+            case 8:
+                OB13_BaselineView(onNext: { step += 1 })
+            case 9:
+                OB15_WhyFathrView(onNext: { step += 1 })
+            case 10:
+                OB20_DashboardPreviewView(onNext: {
+                    hasCompletedOnboarding = true
+                    onComplete()
+                })
             default:
                 Text("Something went wrong")
-                    .font(.headline)
                     .onAppear { step = 0 }
-                    .accessibilityLabel("Error in onboarding, restarting")
             }
+
+            Spacer()
         }
         .animation(.easeInOut, value: step)
         .transition(.slide)
         .padding()
-        .onAppear {
-            if Auth.auth().currentUser == nil {
-                Auth.auth().signInAnonymously { result, error in
-                    if let error = error {
-                        print("Anonymous login failed: \(error.localizedDescription)")
-                    }
-                }
-            }
-        }
     }
 }
 
 #Preview {
-    OnboardingView()
+    OnboardingView(onComplete: {})
 }

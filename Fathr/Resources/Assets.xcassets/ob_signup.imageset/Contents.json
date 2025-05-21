@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "iTunesArtwork@1x.png",
+      "filename" : "ob_signup.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "iTunesArtwork@2x.png",
+      "filename" : "ob_signup 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "f (3).png",
+      "filename" : "ob_signup 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

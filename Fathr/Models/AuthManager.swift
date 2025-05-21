@@ -11,15 +11,17 @@ class AuthManager: ObservableObject {
     private var authListenerHandle: AuthStateDidChangeListenerHandle?
 
     init() {
-        // Debug: Sign out to clear user
-        try? Auth.auth().signOut()
-        if Auth.auth().currentUser != nil {
-            isSignedIn = true
-        }
+        checkAuthState() // Initial check
         authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             self?.isSignedIn = user != nil
             print("AuthManager: isSignedIn = \(self?.isSignedIn ?? false), user = \(user?.uid ?? "none")")
         }
+    }
+
+    func checkAuthState() {
+        let user = Auth.auth().currentUser
+        isSignedIn = user != nil
+        print("AuthManager checkAuthState: isSignedIn = \(isSignedIn), user = \(user?.uid ?? "none")")
     }
 
     func signIn(email: String, password: String) {
@@ -30,35 +32,19 @@ class AuthManager: ObservableObject {
                 print("Sign-in error: \(error.localizedDescription)")
                 return
             }
-            self?.isSignedIn = true
+            self?.isSignedIn = result?.user != nil
         }
     }
 
     func signUp(email: String, password: String) {
         errorMessage = nil
-        let oldUserID = Auth.auth().currentUser?.uid
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             if let error = error {
                 self?.errorMessage = error.localizedDescription
                 print("Sign-up error: \(error.localizedDescription)")
                 return
             }
-            if let anonymousUser = Auth.auth().currentUser, anonymousUser.isAnonymous, let oldUserID = oldUserID {
-                let credential = EmailAuthProvider.credential(withEmail: email, password: password)
-                anonymousUser.link(with: credential) { linkResult, linkError in
-                    if let linkError = linkError {
-                        self?.errorMessage = "Failed to link account: \(linkError.localizedDescription)"
-                        print("Link error: \(linkError.localizedDescription)")
-                        return
-                    }
-                    if let newUserID = linkResult?.user.uid {
-                        self?.moveOnboardingAnswers(from: oldUserID, to: newUserID)
-                    }
-                    self?.isSignedIn = true
-                }
-            } else {
-                self?.isSignedIn = true
-            }
+            self?.isSignedIn = result?.user != nil
         }
     }
 
@@ -116,24 +102,6 @@ class AuthManager: ObservableObject {
                 self.errorMessage = nil
                 print("Account deleted successfully")
                 completion(nil)
-            }
-        }
-    }
-
-    private func moveOnboardingAnswers(from oldUserID: String, to newUserID: String) {
-        let db = Firestore.firestore()
-        db.collection("users").document(oldUserID).collection("onboarding").document("answers").getDocument { snapshot, error in
-            guard let data = snapshot?.data(), error == nil else {
-                print("No answers to move or error: \(error?.localizedDescription ?? "Unknown")")
-                return
-            }
-            db.collection("users").document(newUserID).collection("onboarding").document("answers").setData(data) { error in
-                if let error = error {
-                    print("Error moving answers: \(error.localizedDescription)")
-                } else {
-                    db.collection("users").document(oldUserID).collection("onboarding").document("answers").delete()
-                    print("Answers moved successfully")
-                }
             }
         }
     }

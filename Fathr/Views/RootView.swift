@@ -2,35 +2,65 @@ import SwiftUI
 import FirebaseAuth
 
 struct RootView: View {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @State private var showSplash: Bool = true
+    @State private var showSignUpScreen: Bool = false
+    @State private var showAuth: Bool = false
+    @State private var isLoggedIn: Bool = false
+    @State private var selectedTab: Int = 0 // For TabBarView tab selection
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
-    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
-    @State private var showSplashScreen = true
-    
+
     var body: some View {
-        ZStack {
-            if showSplashScreen {
-                SplashScreen()
-                    .transition(.opacity)
-            } else {
-                Group {
-                    if !hasCompletedOnboarding {
-                        OnboardingView()
-                    } else if !authManager.isSignedIn || Auth.auth().currentUser?.isAnonymous == true {
-                        AuthView()
-                    } else {
-                        TabBarView()
-                    }
+        Group {
+            if showSplash {
+                OB1_SplashScreen {
+                    showSplash = false
+                    showSignUpScreen = true
                 }
+            } else if showSignUpScreen {
+                OB2_SignupScreen {
+                    showSignUpScreen = false
+                    showAuth = true
+                }
+            } else if showAuth || (!isLoggedIn && hasCompletedOnboarding) {
+                AuthView(onAuthSuccess: {
+                    isLoggedIn = true
+                    showAuth = false
+                })
+            } else if !hasCompletedOnboarding {
+                OnboardingView {
+                    hasCompletedOnboarding = true
+                }
+            } else {
+                TabBarView()
+                    .environmentObject(authManager)
+                    .environmentObject(testStore)
+                    .environmentObject(purchaseModel)
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: showSplashScreen)
         .onAppear {
-            print("RootView: hasCompletedOnboarding = \(hasCompletedOnboarding), isSignedIn = \(authManager.isSignedIn), isAnonymous = \(Auth.auth().currentUser?.isAnonymous ?? false)")
-            // Show splash screen for 1 second
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                showSplashScreen = false
+            // Check Firebase Auth state
+            if Auth.auth().currentUser != nil {
+                isLoggedIn = true
+                showAuth = false
+                showSplash = false
+                showSignUpScreen = false
+            } else {
+                isLoggedIn = false
+                showAuth = hasCompletedOnboarding
+                showSplash = !hasCompletedOnboarding
+                showSignUpScreen = false
+            }
+        }
+        .onChange(of: Auth.auth().currentUser) { _, newUser in
+            // Handle auth state changes (e.g., sign-out)
+            isLoggedIn = newUser != nil
+            if newUser == nil {
+                showAuth = hasCompletedOnboarding
+                showSplash = !hasCompletedOnboarding
+                showSignUpScreen = false
             }
         }
     }

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ResultsView: View {
     let test: TestData
-    @EnvironmentObject var purchaseModel: PurchaseModel // Retained for potential future use
+    @EnvironmentObject var purchaseModel: PurchaseModel
     
     var body: some View {
         ScrollView {
@@ -12,15 +12,13 @@ struct ResultsView: View {
                     .fontDesign(.rounded)
                     .padding(.bottom)
                 
-                // Disclaimer and WHO Reference
                 Text("Visualizations are based on WHO 6th Edition standards for informational purposes only. Fathr is not a medical device. Consult a doctor for fertility concerns.")
                     .font(.caption)
                     .foregroundColor(.gray)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
                 
-                // Analysis Section
-                VStack(alignment: .leading, spacing: 4) { // Nested VStack to reduce gap
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Analysis")
                         .font(.title3)
                         .fontDesign(.rounded)
@@ -28,7 +26,7 @@ struct ResultsView: View {
                         .padding(.horizontal, 16)
                         .accessibilityHeading(.h2)
                     Text("Tests the physical properties of the semen sample.")
-                        .font(.subheadline) // Changed to .subheadline for larger font
+                        .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.leading)
@@ -69,8 +67,7 @@ struct ResultsView: View {
                     isAvailable: test.pH != nil
                 )
                 
-                // Motility Section
-                VStack(alignment: .leading, spacing: 4) { // Nested VStack
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Motility")
                         .font(.title3)
                         .fontDesign(.rounded)
@@ -79,7 +76,7 @@ struct ResultsView: View {
                         .padding(.top, 8)
                         .accessibilityHeading(.h2)
                     Text("Checks how well sperm move and swim.")
-                        .font(.subheadline) // Changed to .subheadline
+                        .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.leading)
@@ -142,8 +139,7 @@ struct ResultsView: View {
                     description: "Whether sperm stick together. None or mild is normal, severe may affect fertility."
                 )
                 
-                // Concentration Section
-                VStack(alignment: .leading, spacing: 4) { // Nested VStack
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Concentration")
                         .font(.title3)
                         .fontDesign(.rounded)
@@ -152,7 +148,7 @@ struct ResultsView: View {
                         .padding(.top, 8)
                         .accessibilityHeading(.h2)
                     Text("Measures the number of sperm in the sample.")
-                        .font(.subheadline) // Changed to .subheadline
+                        .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.leading)
@@ -213,8 +209,7 @@ struct ResultsView: View {
                     isAvailable: test.liveSpermatozoa != nil
                 )
                 
-                // Morphology Section
-                VStack(alignment: .leading, spacing: 4) { // Nested VStack
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Morphology")
                         .font(.title3)
                         .fontDesign(.rounded)
@@ -223,7 +218,7 @@ struct ResultsView: View {
                         .padding(.top, 8)
                         .accessibilityHeading(.h2)
                     Text("Examines the shape and structure of sperm.")
-                        .font(.subheadline) // Changed to .subheadline
+                        .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.leading)
@@ -272,8 +267,7 @@ struct ResultsView: View {
                     isAvailable: test.tailDefect != nil
                 )
                 
-                // DNA Fragmentation Section
-                VStack(alignment: .leading, spacing: 4) { // Nested VStack
+                VStack(alignment: .leading, spacing: 4) {
                     Text("DNA Fragmentation")
                         .font(.title3)
                         .fontDesign(.rounded)
@@ -282,7 +276,7 @@ struct ResultsView: View {
                         .padding(.top, 8)
                         .accessibilityHeading(.h2)
                     Text("Assesses damage to sperm DNA.")
-                        .font(.subheadline) // Changed to .subheadline
+                        .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
                         .multilineTextAlignment(.leading)
@@ -304,14 +298,12 @@ struct ResultsView: View {
                     description: "Risk level of sperm DNA damage. Low risk is best for fertility."
                 )
                 
-                // Overall Status
                 StatusBox(
                     title: "Overall Status",
                     status: test.overallStatus,
                     description: "A summary of your test results. Normal indicates healthy semen parameters."
                 )
                 
-                // Additional Disclaimer
                 Text("Results are for personal awareness, not medical diagnosis.")
                     .font(.caption)
                     .fontDesign(.rounded)
@@ -321,10 +313,17 @@ struct ResultsView: View {
             .padding()
         }
         .navigationTitle("Wellness Results")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                EmptyView() // Let default back button appear
+            }
+        }
+        .toolbar(.visible, for: .tabBar) // Ensure tab bar remains visible
     }
 }
 
-// Progress bar view for numeric metrics
+// ProgressStatusBox remains unchanged
 struct ProgressStatusBox: View {
     let title: String
     let value: Double
@@ -332,7 +331,7 @@ struct ProgressStatusBox: View {
     let unit: String
     let whoRange: ClosedRange<Double>?
     let description: String
-    let isAvailable: Bool // New parameter to indicate if data is provided
+    let isAvailable: Bool
 
     init(title: String, value: Double, maxValue: Double, unit: String, whoRange: ClosedRange<Double>? = nil, description: String, isAvailable: Bool = true) {
         self.title = title
@@ -393,35 +392,37 @@ struct ProgressStatusBox: View {
 
 struct ResultsView_Previews: PreviewProvider {
     static var previews: some View {
-        ResultsView(test: TestData(
-            id: nil,
-            appearance: .normal,
-            liquefaction: .normal,
-            consistency: .medium,
-            semenQuantity: 2.0,
-            pH: 7.4,
-            totalMobility: 50.0,
-            progressiveMobility: 40.0,
-            nonProgressiveMobility: 10.0,
-            travelSpeed: 0.1,
-            mobilityIndex: 60.0,
-            still: 30.0,
-            agglutination: .mild,
-            spermConcentration: 20.0,
-            totalSpermatozoa: 40.0,
-            functionalSpermatozoa: 15.0,
-            roundCells: 0.5,
-            leukocytes: 0.2,
-            liveSpermatozoa: 70.0,
-            morphologyRate: 5.0,
-            pathology: 10.0,
-            headDefect: 3.0,
-            neckDefect: 2.0,
-            tailDefect: 1.0,
-            date: Date(),
-            dnaFragmentationRisk: 10,
-            dnaRiskCategory: "Low"
-        ))
-        .environmentObject(PurchaseModel())
+        NavigationStack {
+            ResultsView(test: TestData(
+                id: nil,
+                appearance: .normal,
+                liquefaction: .normal,
+                consistency: .medium,
+                semenQuantity: 2.0,
+                pH: 7.4,
+                totalMobility: 50.0,
+                progressiveMobility: 40.0,
+                nonProgressiveMobility: 10.0,
+                travelSpeed: 0.1,
+                mobilityIndex: 60.0,
+                still: 30.0,
+                agglutination: .mild,
+                spermConcentration: 20.0,
+                totalSpermatozoa: 40.0,
+                functionalSpermatozoa: 15.0,
+                roundCells: 0.5,
+                leukocytes: 0.2,
+                liveSpermatozoa: 70.0,
+                morphologyRate: 5.0,
+                pathology: 10.0,
+                headDefect: 3.0,
+                neckDefect: 2.0,
+                tailDefect: 1.0,
+                date: Date(),
+                dnaFragmentationRisk: 10,
+                dnaRiskCategory: "Low"
+            ))
+            .environmentObject(PurchaseModel())
+        }
     }
 }

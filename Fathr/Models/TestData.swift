@@ -196,3 +196,35 @@ struct TestData: Identifiable, Codable {
         self.dnaRiskCategory = estimatedRisk < 20 ? "Low" : (estimatedRisk < 40 ? "Moderate" : "High")
     }
 }
+
+extension TestData: Equatable {
+    static func == (lhs: TestData, rhs: TestData) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.appearance == rhs.appearance &&
+               lhs.liquefaction == rhs.liquefaction &&
+               lhs.consistency == rhs.consistency &&
+               lhs.semenQuantity == rhs.semenQuantity &&
+               lhs.pH == rhs.pH &&
+               lhs.totalMobility == rhs.totalMobility &&
+               lhs.progressiveMobility == rhs.progressiveMobility &&
+               lhs.nonProgressiveMobility == rhs.nonProgressiveMobility &&
+               lhs.travelSpeed == rhs.travelSpeed &&
+               lhs.mobilityIndex == rhs.mobilityIndex &&
+               lhs.still == rhs.still &&
+               lhs.agglutination == rhs.agglutination &&
+               lhs.spermConcentration == rhs.spermConcentration &&
+               lhs.totalSpermatozoa == rhs.totalSpermatozoa &&
+               lhs.functionalSpermatozoa == rhs.functionalSpermatozoa &&
+               lhs.roundCells == rhs.roundCells &&
+               lhs.leukocytes == rhs.leukocytes &&
+               lhs.liveSpermatozoa == rhs.liveSpermatozoa &&
+               lhs.morphologyRate == rhs.morphologyRate &&
+               lhs.pathology == rhs.pathology &&
+               lhs.headDefect == rhs.headDefect &&
+               lhs.neckDefect == rhs.neckDefect &&
+               lhs.tailDefect == rhs.tailDefect &&
+               lhs.date == rhs.date &&
+               lhs.dnaFragmentationRisk == rhs.dnaFragmentationRisk &&
+               lhs.dnaRiskCategory == rhs.dnaRiskCategory
+    }
+}

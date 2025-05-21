@@ -2,565 +2,663 @@ import SwiftUI
 
 struct TrackView: View {
     @EnvironmentObject var testStore: TestStore
-    @State private var showInput = false
-    
-    // Nested Trend enum
-    enum Trend {
-        case up, down, none
-    }
-    
+    @State private var showTestInput = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                TrackContentView(showInput: $showInput)
+                TrackContentView(showTestInput: $showTestInput)
             }
             .background(Color.white)
-            .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Track")
-                        .font(.title.bold())
-                        .fontDesign(.rounded)
-                        .foregroundColor(.black)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showInput = true
-                    }) {
-                        Image(systemName: "plus")
-                            .font(.body.bold())
-                            .foregroundColor(.white)
-                            .frame(width: 32, height: 32)
-                            .background(Color.blue)
-                            .clipShape(Circle())
-                    }
-                    .accessibilityLabel("Add New Test")
-                }
-            }
-            .sheet(isPresented: $showInput) {
+            .navigationTitle("Track")
+            .sheet(isPresented: $showTestInput) {
                 TestInputView()
                     .environmentObject(testStore)
             }
+            .toolbar(.visible, for: .tabBar) // Ensure tab bar remains visible
         }
     }
 }
 
 struct TrackContentView: View {
     @EnvironmentObject var testStore: TestStore
-    @Binding var showInput: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if testStore.tests.isEmpty {
-                Text("No test results yet.")
-                    .font(.subheadline)
-                    .fontDesign(.rounded)
-                    .foregroundColor(.gray)
-            } else {
-                TestResultsView()
-            }
-            
-            Text("Visualizations are based on WHO 6th Edition standards for informational purposes only. Fathr is not a medical device. Consult a doctor for fertility concerns.")
-                .font(.caption)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding(.top)
-        }
-        .padding(.horizontal)
-        .padding(.top, 0)
-    }
-    
-    private struct Averages {
-        let overallScore: Int
-        let motility: Int
-        let concentration: Int
-        let morphology: Int
-        let dnaFragmentation: Int?
-        let spermAnalysis: Int
-    }
-    
-    private func calculateAverages() -> Averages {
-        let count = testStore.tests.count
-        guard count > 0 else {
-            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: nil, spermAnalysis: 0)
-        }
-        
-        let totalMotility = testStore.tests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = testStore.tests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = testStore.tests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        
-        let dnaScores = testStore.tests.map { test in
-            test.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
-        }
-        let totalDnaFragmentation = dnaScores.reduce(0, +)
-        
-        let totalSpermAnalysis = testStore.tests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let avgMotility = totalMotility / count
-        let avgConcentration = totalConcentration / count
-        let avgMorphology = totalMorphology / count
-        let avgDnaFragmentation = totalDnaFragmentation / count
-        let avgSpermAnalysis = totalSpermAnalysis / count
-        
-        let scores: [Int] = [
-            avgMotility,
-            avgConcentration,
-            avgMorphology,
-            avgDnaFragmentation,
-            avgSpermAnalysis
-        ]
-        let overallScore = scores.reduce(0, +) / scores.count
-        
-        return Averages(
-            overallScore: overallScore,
-            motility: avgMotility,
-            concentration: avgConcentration,
-            morphology: avgMorphology,
-            dnaFragmentation: avgDnaFragmentation,
-            spermAnalysis: avgSpermAnalysis
-        )
-    }
-    
-    private func calculateTrend() -> TrackView.Trend {
-        guard testStore.tests.count > 1 else { return .none }
-        
-        let latestTest = testStore.tests[0]
-        let currentScores: [Int] = [
-            Int(latestTest.totalMobility ?? 0.0),
-            Int((latestTest.spermConcentration ?? 0.0) / 100 * 100),
-            Int(latestTest.morphologyRate ?? 0.0),
-            latestTest.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80,
-            mapAnalysisStatusToScore(latestTest.analysisStatus)
-        ]
-        let currentOverall = currentScores.reduce(0, +) / currentScores.count
-        
-        let previousTests = Array(testStore.tests.dropFirst())
-        let prevCount = previousTests.count
-        
-        let totalMotility = previousTests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = previousTests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = previousTests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        let totalDna = previousTests.reduce(0) { $0 + ($1.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80) }
-        let totalAnalysis = previousTests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let previousOverall = (totalMotility + totalConcentration + totalMorphology + totalDna + totalAnalysis) / (prevCount * 5)
-        
-        if currentOverall > previousOverall { return .up }
-        if currentOverall < previousOverall { return .down }
-        return .none
-    }
-    
-    private func mapAnalysisStatusToScore(_ status: String) -> Int {
-        switch status.lowercased() {
-        case "typical": return 80
-        case "atypical": return 40
-        default: return 50
-        }
-    }
-}
+    @Binding var showTestInput: Bool
 
-struct TestResultsView: View {
-    @EnvironmentObject var testStore: TestStore
-    
-    var body: some View {
-        let averages = calculateAverages()
-        let trend = calculateTrend()
-        
-        OverallScoreCard(
-            overallScore: averages.overallScore,
-            trend: trend
-        )
-        
-        FertilityStatusView(
-            motility: averages.motility,
-            concentration: averages.concentration,
-            morphology: averages.morphology,
-            dnaFragmentation: averages.dnaFragmentation,
-            spermAnalysis: averages.spermAnalysis
-        )
-        
-        if testStore.tests.count > 1 {
-            NavigationLink(destination: PastResultsView()) {
-                Text("View Past Results")
-                    .font(.headline.bold())
-                    .fontDesign(.rounded)
-                    .foregroundColor(.black)
-                    .padding(.vertical, 12)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.teal.opacity(0.1))
-                    .cornerRadius(15)
-            }
-        }
-    }
-    
-    private struct Averages {
-        let overallScore: Int
-        let motility: Int
-        let concentration: Int
-        let morphology: Int
-        let dnaFragmentation: Int?
-        let spermAnalysis: Int
-    }
-    
-    private func calculateAverages() -> Averages {
-        let count = testStore.tests.count
-        guard count > 0 else {
-            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: nil, spermAnalysis: 0)
-        }
-        
-        let totalMotility = testStore.tests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = testStore.tests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = testStore.tests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        
-        let dnaScores = testStore.tests.map { test in
-            test.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80
-        }
-        let totalDnaFragmentation = dnaScores.reduce(0, +)
-        
-        let totalSpermAnalysis = testStore.tests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let avgMotility = totalMotility / count
-        let avgConcentration = totalConcentration / count
-        let avgMorphology = totalMorphology / count
-        let avgDnaFragmentation = totalDnaFragmentation / count
-        let avgSpermAnalysis = totalSpermAnalysis / count
-        
-        let scores: [Int] = [
-            avgMotility,
-            avgConcentration,
-            avgMorphology,
-            avgDnaFragmentation,
-            avgSpermAnalysis
-        ]
-        let overallScore = scores.reduce(0, +) / scores.count
-        
-        return Averages(
-            overallScore: overallScore,
-            motility: avgMotility,
-            concentration: avgConcentration,
-            morphology: avgMorphology,
-            dnaFragmentation: avgDnaFragmentation,
-            spermAnalysis: avgSpermAnalysis
-        )
-    }
-    
-    private func calculateTrend() -> TrackView.Trend {
-        guard testStore.tests.count > 1 else { return .none }
-        
-        let latestTest = testStore.tests[0]
-        let currentScores: [Int] = [
-            Int(latestTest.totalMobility ?? 0.0),
-            Int((latestTest.spermConcentration ?? 0.0) / 100 * 100),
-            Int(latestTest.morphologyRate ?? 0.0),
-            latestTest.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80,
-            mapAnalysisStatusToScore(latestTest.analysisStatus)
-        ]
-        let currentOverall = currentScores.reduce(0, +) / currentScores.count
-        
-        let previousTests = Array(testStore.tests.dropFirst())
-        let prevCount = previousTests.count
-        
-        let totalMotility = previousTests.reduce(0) { $0 + Int($1.totalMobility ?? 0.0) }
-        let totalConcentration = previousTests.reduce(0) { $0 + Int(($1.spermConcentration ?? 0.0) / 100 * 100) }
-        let totalMorphology = previousTests.reduce(0) { $0 + Int($1.morphologyRate ?? 0.0) }
-        let totalDna = previousTests.reduce(0) { $0 + ($1.dnaFragmentationRisk.map { Int(100 - Double($0)) } ?? 80) }
-        let totalAnalysis = previousTests.reduce(0) { $0 + mapAnalysisStatusToScore($1.analysisStatus) }
-        
-        let previousOverall = (totalMotility + totalConcentration + totalMorphology + totalDna + totalAnalysis) / (prevCount * 5)
-        
-        if currentOverall > previousOverall { return .up }
-        if currentOverall < previousOverall { return .down }
-        return .none
-    }
-    
-    private func mapAnalysisStatusToScore(_ status: String) -> Int {
-        switch status.lowercased() {
-        case "typical": return 80
-        case "atypical": return 40
-        default: return 50
-        }
-    }
-}
-
-// Overall Score Card with 3/4 Circular Gauge
-struct OverallScoreCard: View {
-    let overallScore: Int
-    let trend: TrackView.Trend
-    
-    var body: some View {
-        VStack(alignment: .center, spacing: 12) {
-            ZStack {
-                Circle()
-                    .trim(from: 0.5833, to: 0.4167)
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 12)
-                    .frame(width: 150, height: 150)
-                    .rotationEffect(.degrees(90))
-                
-                Circle()
-                    .trim(from: 0.5833 - (0.75 * CGFloat(overallScore) / 100), to: 0.5833)
-                    .stroke(
-                        LinearGradient(
-                            colors: scoreGradient(),
-                            startPoint: .bottomTrailing,
-                            endPoint: .bottomLeading
-                        ),
-                        style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                    )
-                    .frame(width: 150, height: 150)
-                    .rotationEffect(.degrees(90))
-                    .animation(.easeInOut(duration: 0.5), value: overallScore)
-                
-                VStack(spacing: 4) {
-                    Text("\(overallScore)")
-                        .font(.system(size: 48, weight: .bold))
-                        .fontDesign(.rounded)
-                        .foregroundColor(.black)
-                    
-                    Text(overallScoreReference(score: overallScore))
-                        .font(.caption)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("Overall score: \(overallScore) out of 100, \(overallScoreReference(score: overallScore))")
-        }
-        .padding()
-        .cornerRadius(15)
-        .shadow(color: .gray.opacity(0.1), radius: 5)
-    }
-    
-    private func overallScoreReference(score: Int) -> String {
-        switch score {
-        case 80...100:
-            return "Higher Range"
-        case 60..<80:
-            return "Moderate Range"
-        default:
-            return "Lower Range"
-        }
-    }
-    
-    private func scoreGradient() -> [Color] {
-        return [
-            Color.green,
-            Color.green.opacity(0.8)
-        ]
-    }
-}
-
-// Fertility Status Section (No Dropdown)
-struct FertilityStatusView: View {
-    let motility: Int
-    let concentration: Int
-    let morphology: Int
-    let dnaFragmentation: Int?
-    let spermAnalysis: Int
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Fertility Status")
-                .font(.title3.bold())
-                .fontDesign(.rounded)
-                .foregroundColor(.black)
-            
-            CategoryRow(label: "Sperm Quality", score: spermAnalysis)
-            CategoryRow(label: "Motility", score: motility)
-            CategoryRow(label: "Concentration", score: concentration)
-            CategoryRow(label: "Morphology", score: morphology)
-            if let dnaFrag = dnaFragmentation {
-                CategoryRow(label: "DNA Fragmentation", score: dnaFrag)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(15)
-        .shadow(color: .gray.opacity(0.1), radius: 5)
-    }
-}
-
-// Category Row for Fertility Status
-struct CategoryRow: View {
-    let label: String
-    let score: Int
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 12) {
-                Text(label)
-                    .font(.headline.bold())
-                    .fontDesign(.rounded)
-                    .foregroundColor(.black)
-                
-                Spacer()
-                
-                Text("\(score)")
-                    .font(.subheadline)
-                    .fontDesign(.rounded)
-                    .foregroundColor(.gray)
-            }
-            
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 8)
-                
-                GeometryReader { geometry in
-                    Capsule()
-                        .fill(scoreGradient(score: score))
-                        .frame(width: max(geometry.size.width * CGFloat(score) / 100, 2), height: 8)
-                        .animation(.easeOut(duration: 0.5), value: score)
+            if testStore.tests.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No Test Results")
+                        .font(.title2)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                    Text("Add your first test from the Dashboard to start tracking your progress.")
+                        .font(.subheadline)
+                        .fontDesign(.rounded)
+                        .foregroundColor(.gray)
+                        .padding(.horizontal)
                 }
+            } else {
+                NextTestProgressBarView(showTestInput: $showTestInput)
+                SummaryCardsView()
+                RecentResultsBreakdownView()
             }
-            .frame(height: 8)
-            
-            Text(scoreFeedback(score: score))
-                .font(.caption)
-                .fontDesign(.rounded)
-                .foregroundColor(.gray)
         }
-        .padding(.vertical, 4)
-        .accessibilityLabel("\(label): \(score) out of 100, \(scoreFeedback(score: score))")
-    }
-    
-    func scoreGradient(score: Int) -> LinearGradient {
-        if score >= 80 {
-            return LinearGradient(colors: [Color.teal, Color.teal.opacity(0.8)],
-                                  startPoint: .leading, endPoint: .trailing)
-        } else if score >= 60 {
-            return LinearGradient(colors: [Color.yellow, Color.orange],
-                                  startPoint: .leading, endPoint: .trailing)
-        } else {
-            return LinearGradient(colors: [Color.red, Color.orange],
-                                  startPoint: .leading, endPoint: .trailing)
-        }
-    }
-    
-    func scoreFeedback(score: Int) -> String {
-        switch score {
-        case 80...100:
-            return "Higher Range"
-        case 60..<80:
-            return "Moderate Range"
-        default:
-            return "Lower Range"
-        }
+        .padding(.vertical)
     }
 }
 
-struct PastResultsView: View {
+// MARK: - Next Test Progress Bar
+struct NextTestProgressBarView: View {
     @EnvironmentObject var testStore: TestStore
-    
+    @Binding var showTestInput: Bool
+
+    private let regenerationDays = 77 // Sperm regeneration cycle
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Past Results")
-                    .font(.title.bold())
-                    .fontDesign(.rounded)
-                    .foregroundColor(.black)
-                
-                ForEach(testStore.tests, id: \.id) { test in
-                    TestResultRow(test: test)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Days Until Next Test")
+                .font(.title2)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+
+            if let latestTest = testStore.tests.first {
+                let daysSinceTest = daysSince(date: latestTest.date)
+                let progress = min(Double(daysSinceTest) / Double(regenerationDays), 1.0)
+                let daysLeft = max(regenerationDays - daysSinceTest, 0)
+                let isOverdue = daysSinceTest > regenerationDays
+
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                        .tint(isOverdue ? .red : .blue)
+                        .background(Color.gray.opacity(0.2))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                    Text(isOverdue ? "You're overdue — take your next test now to track progress." : "\(daysSinceTest) of \(regenerationDays) days complete • \(daysLeft) days left until next test")
+                        .font(.subheadline)
+                        .fontDesign(.rounded)
+                        .foregroundColor(isOverdue ? .red : .black)
+                    if isOverdue {
+                        Button(action: { showTestInput = true }) {
+                            Text("Add New Test")
+                                .font(.subheadline.bold())
+                                .fontDesign(.rounded)
+                                .foregroundColor(.white)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                        }
+                        .accessibilityLabel("Add new test to track progress")
+                    }
                 }
-                
-                Text("Fathr is not a medical device. Visualizations are for informational purposes only. Consult a doctor for fertility concerns.")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .multilineTextAlignment(.center)
-                    .padding(.top)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(15)
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private func daysSince(date: Date) -> Int {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: date, to: Date())
+        return components.day ?? 0
+    }
+}
+
+// MARK: - Summary Cards
+struct SummaryCardsView: View {
+    @EnvironmentObject var testStore: TestStore
+    @State private var expandedCards: [String: Bool] = [
+        "Analysis": false,
+        "Motility": false,
+        "Concentration": false,
+        "Morphology": false,
+        "DNA Fragmentation": false
+    ]
+
+    // Define Averages struct locally to avoid DashboardView dependency
+    private struct Averages {
+        let overallScore: Double
+        let motility: Double
+        let concentration: Double
+        let morphology: Double
+        let dnaFragmentation: Double
+        let spermAnalysis: Double
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Health Summary")
+                .font(.title2)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+
+            if let latestTest = testStore.tests.first {
+                let averages = calculateAverages()
+                SummaryCardView(
+                    title: "Analysis",
+                    score: averages.spermAnalysis,
+                    summary: latestTest.analysisStatus == "Typical" ? "Normal range, excellent semen quality." : "Needs attention, consult a specialist.",
+                    isExpanded: Binding(
+                        get: { expandedCards["Analysis"] ?? false },
+                        set: { expandedCards["Analysis"] = $0 }
+                    ),
+                    details: SummaryCardDetails(
+                        what: "Measures physical properties like appearance, liquefaction, volume, and pH.",
+                        why: "Ensures semen provides a suitable environment for sperm to survive and function.",
+                        whoRange: "Normal appearance, liquefaction, pH 7.2–8.0, volume ≥1.4 mL.",
+                        improvementTime: "Usually improves over 1–2 cycles (roughly 35–70 days).",
+                        tips: ["Stay hydrated.", "Avoid smoking and alcohol.", "Maintain a healthy diet."]
+                    )
+                )
+                SummaryCardView(
+                    title: "Motility",
+                    score: averages.motility,
+                    summary: (latestTest.totalMobility ?? 0) >= 40 ? "Normal range, great sperm movement." : "Below normal, aim for ≥40%.",
+                    isExpanded: Binding(
+                        get: { expandedCards["Motility"] ?? false },
+                        set: { expandedCards["Motility"] = $0 }
+                    ),
+                    details: SummaryCardDetails(
+                        what: "Percentage of sperm that are moving, especially forward (progressive motility).",
+                        why: "Sperm must swim to reach and fertilize the egg.",
+                        whoRange: "Total motility ≥40%, progressive motility ≥30%.",
+                        improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
+                        tips: ["Exercise regularly.", "Eat antioxidant-rich foods like berries.", "Avoid heat exposure (e.g., hot tubs)."]
+                    )
+                )
+                SummaryCardView(
+                    title: "Concentration",
+                    score: averages.concentration,
+                    summary: (latestTest.spermConcentration ?? 0) >= 15 ? "Normal range, strong sperm count." : "Below normal, aim for ≥15 M/mL.",
+                    isExpanded: Binding(
+                        get: { expandedCards["Concentration"] ?? false },
+                        set: { expandedCards["Concentration"] = $0 }
+                    ),
+                    details: SummaryCardDetails(
+                        what: "Number of sperm per milliliter of semen.",
+                        why: "Higher counts increase the chance of fertilization.",
+                        whoRange: "≥16 M/mL (WHO 6th Edition).",
+                        improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
+                        tips: ["Take zinc and selenium supplements.", "Avoid stress.", "Sleep 7–8 hours nightly."]
+                    )
+                )
+                SummaryCardView(
+                    title: "Morphology",
+                    score: averages.morphology,
+                    summary: (latestTest.morphologyRate ?? 0) >= 4 ? "Normal range, good sperm structure." : "Below normal, aim for ≥4%.",
+                    isExpanded: Binding(
+                        get: { expandedCards["Morphology"] ?? false },
+                        set: { expandedCards["Morphology"] = $0 }
+                    ),
+                    details: SummaryCardDetails(
+                        what: "Percentage of sperm with normal shape and structure.",
+                        why: "Normal-shaped sperm are more likely to fertilize an egg.",
+                        whoRange: "≥4% normal forms.",
+                        improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
+                        tips: ["Eat foods rich in folate (e.g., spinach).", "Avoid pesticides.", "Take CoQ10 supplements."]
+                    )
+                )
+                SummaryCardView(
+                    title: "DNA Fragmentation",
+                    score: averages.dnaFragmentation,
+                    summary: (latestTest.dnaFragmentationRisk ?? 0) <= 15 ? "Low risk, healthy sperm DNA." : "Moderate/high risk, aim for <15%.",
+                    isExpanded: Binding(
+                        get: { expandedCards["DNA Fragmentation"] ?? false },
+                        set: { expandedCards["DNA Fragmentation"] = $0 }
+                    ),
+                    details: SummaryCardDetails(
+                        what: "Percentage of sperm with damaged DNA.",
+                        why: "Low DNA damage improves embryo viability and pregnancy success.",
+                        whoRange: "<15% for low risk, <30% for moderate risk.",
+                        improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
+                        tips: ["Reduce oxidative stress with antioxidants.", "Avoid smoking.", "Consult a specialist for high risk."]
+                    )
+                )
+            }
+        }
+    }
+
+    private struct SummaryCardDetails {
+        let what: String
+        let why: String
+        let whoRange: String
+        let improvementTime: String
+        let tips: [String]
+    }
+
+    private struct SummaryCardView: View {
+        let title: String
+        let score: Double
+        let summary: String
+        @Binding var isExpanded: Bool
+        let details: SummaryCardDetails
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                Button(action: { isExpanded.toggle() }) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(title)
+                                .font(.headline)
+                                .fontDesign(.rounded)
+                                .foregroundColor(.black)
+                            Text(summary)
+                                .font(.subheadline)
+                                .fontDesign(.rounded)
+                                .foregroundColor(.gray)
+                        }
+                        Spacer()
+                        Text(String(format: "%.1f", score))
+                            .font(.subheadline.bold())
+                            .foregroundColor(scoreColor(score: score))
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(scoreColor(score: score).opacity(0.2))
+                            .cornerRadius(6)
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(.gray)
+                    }
+                }
+                .accessibilityLabel("\(title): \(summary), Score: \(String(format: "%.1f", score)), Tap to \(isExpanded ? "collapse" : "expand") details")
+
+                if isExpanded {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("What is it?").font(.subheadline.bold()).fontDesign(.rounded)
+                        Text(details.what).font(.subheadline).fontDesign(.rounded).foregroundColor(.gray)
+                        Text("Why it matters?").font(.subheadline.bold()).fontDesign(.rounded)
+                        Text(details.why).font(.subheadline).fontDesign(.rounded).foregroundColor(.gray)
+                        Text("WHO Recommendation").font(.subheadline.bold()).fontDesign(.rounded)
+                        Text(details.whoRange).font(.subheadline).fontDesign(.rounded).foregroundColor(.gray)
+                        Text("How long to improve?").font(.subheadline.bold()).fontDesign(.rounded)
+                        Text(details.improvementTime).font(.subheadline).fontDesign(.rounded).foregroundColor(.gray)
+                        Text("Tips to Improve").font(.subheadline.bold()).fontDesign(.rounded)
+                        ForEach(details.tips, id: \.self) { tip in
+                            HStack(alignment: .top) {
+                                Text("•").font(.subheadline).foregroundColor(.gray)
+                                Text(tip).font(.subheadline).fontDesign(.rounded).foregroundColor(.gray)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom)
+                }
             }
             .padding()
+            .background(Color.white)
+            .cornerRadius(10)
+            .shadow(radius: 2)
+            .padding(.horizontal)
         }
-        .background(Color.white)
-        .navigationTitle("Past Results")
-    }
-}
 
-// New view to simplify PastResultsView
-struct TestResultRow: View {
-    let test: TestData
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(test.dateFormatted)
-                .font(.headline)
-                .fontDesign(.rounded)
-                .foregroundColor(.black)
-            
-            let (score, label) = calculateOverallScore(test: test)
-            Text("Overall Score: \(score) – \(label)")
-                .font(.subheadline)
-                .fontDesign(.rounded)
-                .foregroundColor(.gray)
-            
-            CategoryRow(label: "Sperm Quality", score: mapAnalysisStatusToScore(test.analysisStatus))
-            CategoryRow(label: "Motility", score: Int(test.totalMobility ?? 0.0))
-            CategoryRow(label: "Concentration", score: Int((test.spermConcentration ?? 0.0) / 100 * 100))
-            CategoryRow(label: "Morphology", score: Int(test.morphologyRate ?? 0.0))
-            if let dnaFrag = test.dnaFragmentationRisk {
-                CategoryRow(label: "DNA Fragmentation", score: Int(100 - Double(dnaFrag)))
+        private func scoreColor(score: Double) -> Color {
+            switch score {
+            case 0..<50: return .red
+            case 50..<70: return .orange
+            case 70..<85: return .yellow
+            case 85...100: return .green
+            default: return .gray
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(15)
-        .shadow(color: .gray.opacity(0.1), radius: 5)
     }
-    
-    private func calculateOverallScore(test: TestData) -> (Int, String) {
-        let motilityScore = min(Int(test.totalMobility ?? 0.0), 100)
-        let concentrationScore = min(Int((test.spermConcentration ?? 0.0) / 100 * 100), 100)
-        let morphologyScore = min(Int(test.morphologyRate ?? 0.0), 100)
-        let dnaScore = test.dnaFragmentationRisk.map { min(Int(100 - Double($0)), 100) } ?? 80
-        let analysisScore = mapAnalysisStatusToScore(test.analysisStatus)
-        
-        let scores = [motilityScore, concentrationScore, morphologyScore, dnaScore, analysisScore]
-        let average = scores.reduce(0, +) / scores.count
-        
-        let label: String
-        switch average {
-        case 0..<50: label = "Lower Range"
-        case 50..<70: label = "Moderate Range"
-        case 70..<85: label = "Higher Range"
-        case 85...100: label = "Upper Range"
-        default: label = "Moderate Range"
+
+    private func calculateAverages() -> Averages {
+        let count = testStore.tests.count
+        guard count > 0 else {
+            return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: 0, spermAnalysis: 0)
         }
-        
-        return (average, label)
+
+        let totalMotility = testStore.tests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
+        let totalConcentration = testStore.tests.reduce(0.0) {
+            let conc = $1.spermConcentration ?? 0.0
+            let score = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalMorphology = testStore.tests.reduce(0.0) {
+            let morph = $1.morphologyRate ?? 0.0
+            let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalDnaFragmentation = testStore.tests.reduce(0.0) {
+            let dna = Double($1.dnaFragmentationRisk ?? 0)
+            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            return $0 + score
+        }
+        let totalSpermAnalysis = testStore.tests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
+
+        let avgMotility = totalMotility / Double(count)
+        let avgConcentration = totalConcentration / Double(count)
+        let avgMorphology = totalMorphology / Double(count)
+        let avgDnaFragmentation = totalDnaFragmentation / Double(count)
+        let avgSpermAnalysis = totalSpermAnalysis / Double(count)
+
+        let overallScore = (0.35 * avgMotility) + (0.30 * avgConcentration) + (0.15 * avgMorphology) +
+                           (0.10 * avgDnaFragmentation) + (0.10 * avgSpermAnalysis)
+
+        return Averages(
+            overallScore: overallScore,
+            motility: avgMotility,
+            concentration: avgConcentration,
+            morphology: avgMorphology,
+            dnaFragmentation: avgDnaFragmentation,
+            spermAnalysis: avgSpermAnalysis
+        )
     }
-    
-    private func mapAnalysisStatusToScore(_ status: String) -> Int {
-        switch status.lowercased() {
-        case "typical": return 80
-        case "atypical": return 40
-        default: return 50
-        }
+
+    private func calculateAnalysisScore(_ test: TestData) -> Double {
+        var score: Double = 0
+        if test.appearance == .normal { score += 25 }
+        if test.liquefaction == .normal { score += 25 }
+        if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
+        if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
+        return score
     }
 }
 
-private func scoreColor(score: Int) -> Color {
-    switch score {
-    case 0..<50: return .red
-    case 50..<70: return .orange
-    case 70..<85: return .yellow
-    case 85...100: return .teal
-    default: return .black
-    }
-}
+// MARK: - Recent Results Breakdown
+struct RecentResultsBreakdownView: View {
+    @EnvironmentObject var testStore: TestStore
 
-extension TestData {
-    var dateFormatted: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Most Recent Results")
+                .font(.title2)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .padding(.horizontal)
+
+            if let latestTest = testStore.tests.first {
+                // Analysis Metrics
+                Group {
+                    Text("Analysis")
+                        .font(.title3)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                    StatusBox(
+                        title: "Appearance",
+                        status: latestTest.appearance?.rawValue.capitalized ?? "Not Provided",
+                        description: "Normal is clear or white."
+                    )
+                    StatusBox(
+                        title: "Liquefaction",
+                        status: latestTest.liquefaction?.rawValue.capitalized ?? "Not Provided",
+                        description: "Normal aids sperm movement."
+                    )
+                    StatusBox(
+                        title: "Consistency",
+                        status: latestTest.consistency?.rawValue.capitalized ?? "Not Provided",
+                        description: "Medium is typical."
+                    )
+                    ProgressStatusBox(
+                        title: "Semen Quantity",
+                        value: latestTest.semenQuantity ?? 0.0,
+                        maxValue: 10.0,
+                        unit: "mL",
+                        whoRange: 1.4...6.0,
+                        description: "WHO: 1.4–6.0 mL.",
+                        isAvailable: latestTest.semenQuantity != nil
+                    )
+                    ProgressStatusBox(
+                        title: "pH",
+                        value: latestTest.pH ?? 0.0,
+                        maxValue: 14.0,
+                        unit: "",
+                        whoRange: 7.2...8.0,
+                        description: "WHO: 7.2–8.0.",
+                        isAvailable: latestTest.pH != nil
+                    )
+                }
+
+                // Motility Metrics
+                Group {
+                    Text("Motility")
+                        .font(.title3)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    ProgressStatusBox(
+                        title: "Total Mobility",
+                        value: latestTest.totalMobility ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        whoRange: 40.0...100.0,
+                        description: "WHO: ≥40%.",
+                        isAvailable: latestTest.totalMobility != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Progressive Mobility",
+                        value: latestTest.progressiveMobility ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        whoRange: 30.0...100.0,
+                        description: "WHO: ≥30%.",
+                        isAvailable: latestTest.progressiveMobility != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Non-Progressive Mobility",
+                        value: latestTest.nonProgressiveMobility ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Lower values are common.",
+                        isAvailable: latestTest.nonProgressiveMobility != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Travel Speed",
+                        value: latestTest.travelSpeed ?? 0.0,
+                        maxValue: 1.0,
+                        unit: "mm/sec",
+                        description: "Higher speeds are better.",
+                        isAvailable: latestTest.travelSpeed != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Mobility Index",
+                        value: latestTest.mobilityIndex ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Higher values are better.",
+                        isAvailable: latestTest.mobilityIndex != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Still",
+                        value: latestTest.still ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Lower values are better.",
+                        isAvailable: latestTest.still != nil
+                    )
+                    StatusBox(
+                        title: "Agglutination",
+                        status: latestTest.agglutination?.rawValue.capitalized ?? "Not Provided",
+                        description: "Mild or none is normal."
+                    )
+                }
+
+                // Concentration Metrics
+                Group {
+                    Text("Concentration")
+                        .font(.title3)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    ProgressStatusBox(
+                        title: "Sperm Concentration",
+                        value: latestTest.spermConcentration ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "M/mL",
+                        whoRange: 16.0...100.0,
+                        description: "WHO: ≥16 M/mL.",
+                        isAvailable: latestTest.spermConcentration != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Total Spermatozoa",
+                        value: latestTest.totalSpermatozoa ?? 0.0,
+                        maxValue: 200.0,
+                        unit: "M/mL",
+                        whoRange: 39.0...200.0,
+                        description: "WHO: ≥39 M/mL.",
+                        isAvailable: latestTest.totalSpermatozoa != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Functional Spermatozoa",
+                        value: latestTest.functionalSpermatozoa ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "M/mL",
+                        description: "Higher counts are better.",
+                        isAvailable: latestTest.functionalSpermatozoa != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Round Cells",
+                        value: latestTest.roundCells ?? 0.0,
+                        maxValue: 10.0,
+                        unit: "M/mL",
+                        whoRange: 0.0...1.0,
+                        description: "WHO: <1 M/mL.",
+                        isAvailable: latestTest.roundCells != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Leukocytes",
+                        value: latestTest.leukocytes ?? 0.0,
+                        maxValue: 5.0,
+                        unit: "M/mL",
+                        whoRange: 0.0...1.0,
+                        description: "WHO: <1 M/mL.",
+                        isAvailable: latestTest.leukocytes != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Live Spermatozoa",
+                        value: latestTest.liveSpermatozoa ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        whoRange: 50.0...100.0,
+                        description: "WHO: ≥50%.",
+                        isAvailable: latestTest.liveSpermatozoa != nil
+                    )
+                }
+
+                // Morphology Metrics
+                Group {
+                    Text("Morphology")
+                        .font(.title3)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    ProgressStatusBox(
+                        title: "Morphology Rate",
+                        value: latestTest.morphologyRate ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        whoRange: 4.0...100.0,
+                        description: "WHO: ≥4%.",
+                        isAvailable: latestTest.morphologyRate != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Pathology",
+                        value: latestTest.pathology ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Lower percentages are better.",
+                        isAvailable: latestTest.pathology != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Head Defect",
+                        value: latestTest.headDefect ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Fewer defects are better.",
+                        isAvailable: latestTest.headDefect != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Neck Defect",
+                        value: latestTest.neckDefect ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Fewer defects are better.",
+                        isAvailable: latestTest.neckDefect != nil
+                    )
+                    ProgressStatusBox(
+                        title: "Tail Defect",
+                        value: latestTest.tailDefect ?? 0.0,
+                        maxValue: 100.0,
+                        unit: "%",
+                        description: "Fewer defects are better.",
+                        isAvailable: latestTest.tailDefect != nil
+                    )
+                }
+
+                // DNA Fragmentation Metrics
+                Group {
+                    Text("DNA Fragmentation")
+                        .font(.title3)
+                        .fontDesign(.rounded)
+                        .fontWeight(.bold)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    ProgressStatusBox(
+                        title: "DNA Fragmentation Risk",
+                        value: Double(latestTest.dnaFragmentationRisk ?? 0),
+                        maxValue: 100.0,
+                        unit: "%",
+                        whoRange: 0.0...30.0,
+                        description: "Lower is better (<30%).",
+                        isAvailable: latestTest.dnaFragmentationRisk != nil
+                    )
+                    StatusBox(
+                        title: "DNA Risk Category",
+                        status: latestTest.dnaRiskCategory ?? "Unknown",
+                        description: "Low risk is best."
+                    )
+                }
+            }
+        }
     }
 }
 
 struct TrackView_Previews: PreviewProvider {
     static var previews: some View {
-        TrackView()
-            .environmentObject(TestStore())
+        let testStore = TestStore()
+        testStore.tests = [
+            TestData(
+                id: UUID().uuidString,
+                appearance: .normal,
+                liquefaction: .normal,
+                consistency: .medium,
+                semenQuantity: 2.0,
+                pH: 7.4,
+                totalMobility: 80.0,
+                progressiveMobility: 40.0,
+                nonProgressiveMobility: 10.0,
+                travelSpeed: 0.1,
+                mobilityIndex: 60.0,
+                still: 30.0,
+                agglutination: .mild,
+                spermConcentration: 20.0,
+                totalSpermatozoa: 40.0,
+                functionalSpermatozoa: 15.0,
+                roundCells: 0.5,
+                leukocytes: 0.2,
+                liveSpermatozoa: 70.0,
+                morphologyRate: 5.0,
+                pathology: 10.0,
+                headDefect: 3.0,
+                neckDefect: 2.0,
+                tailDefect: 1.0,
+                date: Calendar.current.date(byAdding: .day, value: -30, to: Date())!, // 30 days ago
+                dnaFragmentationRisk: 10,
+                dnaRiskCategory: "Low"
+            )
+        ]
+        return NavigationStack {
+            TrackView()
+                .environmentObject(testStore)
+        }
     }
 }

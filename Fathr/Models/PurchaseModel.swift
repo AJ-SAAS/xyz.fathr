@@ -1,79 +1,89 @@
 import Foundation
 import RevenueCat
 
-class PurchaseModel: ObservableObject {
+@MainActor
+class PurchaseModel: ObservableObject, Sendable {
     @Published var isSubscribed: Bool = false
     @Published var currentOffering: Offering?
     @Published var errorMessage: String?
 
     init() {
         Purchases.logLevel = .debug
-        checkSubscriptionStatus()
-        fetchOfferings()
+        Task { await checkSubscriptionStatus() }
+        Task { await fetchOfferings() }
     }
 
-    func fetchOfferings() {
-        Purchases.shared.getOfferings { [weak self] offerings, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    self.currentOffering = nil
-                    print("PurchaseModel: Error fetching offerings - \(error)")
-                } else if let offerings = offerings {
-                    self.currentOffering = offerings.current
-                    self.errorMessage = nil
-                    print("PurchaseModel: Fetched offerings successfully")
-                }
+    func fetchOfferings() async {
+        do {
+            let offerings = try await Purchases.shared.offerings()
+            await MainActor.run {
+                self.currentOffering = offerings.current
+                self.errorMessage = nil
+                print("PurchaseModel: Fetched offerings successfully")
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                self.currentOffering = nil
+                print("PurchaseModel: Error fetching offerings - \(error)")
             }
         }
     }
 
-    func purchase(package: Package) {
-        Purchases.shared.purchase(package: package) { [weak self] _, customerInfo, error, userCancelled in
-            DispatchQueue.main.async { [self] in // Fallback to suppress warning
-                guard let self = self else { return }
-                if userCancelled {
+    func purchase(package: Package, completion: @escaping (Bool) -> Void = { _ in }) async {
+        do {
+            let result = try await Purchases.shared.purchase(package: package)
+            await MainActor.run {
+                if result.userCancelled {
                     self.errorMessage = "Purchase cancelled"
-                } else if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    print("PurchaseModel: Purchase error - \(error)")
-                } else if let customerInfo = customerInfo, customerInfo.entitlements["fathr_pro"]?.isActive == true {
+                    completion(false)
+                } else if result.customerInfo.entitlements["fathr_pro"]?.isActive == true {
                     self.isSubscribed = true
                     self.errorMessage = nil
                     print("PurchaseModel: Purchase successful")
+                    completion(true)
+                } else {
+                    completion(false)
                 }
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                print("PurchaseModel: Purchase error - \(error)")
+                completion(false)
             }
         }
     }
 
-    func restorePurchases() {
-        Purchases.shared.restorePurchases { [weak self] customerInfo, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    print("PurchaseModel: Restore error - \(error)")
-                } else if let customerInfo = customerInfo {
-                    self.isSubscribed = customerInfo.entitlements["fathr_pro"]?.isActive == true
-                    self.errorMessage = nil
-                    print("PurchaseModel: Restored purchases successfully")
-                }
+    func restorePurchases(completion: @escaping (Bool) -> Void = { _ in }) async {
+        do {
+            let customerInfo = try await Purchases.shared.restorePurchases()
+            await MainActor.run {
+                self.isSubscribed = customerInfo.entitlements["fathr_pro"]?.isActive == true
+                self.errorMessage = nil
+                print("PurchaseModel: Restored purchases successfully")
+                completion(self.isSubscribed)
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                print("PurchaseModel: Restore error - \(error)")
+                completion(false)
             }
         }
     }
 
-    private func checkSubscriptionStatus() {
-        Purchases.shared.getCustomerInfo { [weak self] customerInfo, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    print("PurchaseModel: Customer info error - \(error)")
-                } else if let customerInfo = customerInfo {
-                    self.isSubscribed = customerInfo.entitlements["fathr_pro"]?.isActive == true
-                    self.errorMessage = nil
-                }
+    private func checkSubscriptionStatus() async {
+        do {
+            let customerInfo = try await Purchases.shared.customerInfo()
+            await MainActor.run {
+                self.isSubscribed = customerInfo.entitlements["fathr_pro"]?.isActive == true
+                self.errorMessage = nil
+            }
+        } catch {
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                print("PurchaseModel: Customer info error - \(error)")
             }
         }
     }

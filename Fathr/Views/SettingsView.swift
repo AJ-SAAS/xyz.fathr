@@ -28,10 +28,16 @@ struct SettingsView: View {
 
                 // Premium Section
                 Section(header: Text("Upgrade")) {
-                    Button("Go Premium 🚀") {
-                        showingPaywall = true
+                    if purchaseModel.isSubscribed {
+                        Text("You’re a Premium Member 🎉")
+                            .foregroundColor(.green)
+                            .accessibilityLabel("You are a Premium Member")
+                    } else {
+                        Button("Go Premium 🚀") {
+                            showingPaywall = true
+                        }
+                        .accessibilityLabel("Go Premium")
                     }
-                    .accessibilityLabel("Go Premium")
                 }
 
                 // Support Section
@@ -69,6 +75,16 @@ struct SettingsView: View {
                     }
                     .disabled(isRestoring)
                     .accessibilityLabel("Restore Purchases")
+
+                    // New Manage Subscription Button
+                    Button(action: {
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                        }
+                    }) {
+                        Text("Manage Subscription")
+                    }
+                    .accessibilityLabel("Manage Subscription")
 
                     if let error = purchaseModel.errorMessage {
                         Text("Error: \(error)")

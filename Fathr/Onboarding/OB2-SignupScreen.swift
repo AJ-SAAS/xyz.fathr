@@ -19,7 +19,7 @@ struct OB2_SignupScreen: View {
                 .frame(maxWidth: .infinity)
                 .accessibilityLabel("Signup Illustration")
 
-            Text("Sign up to access all of Fathr's features!") // Changed "Sign in" to "Sign up"
+            Text("Sign up to access all of Fathr's features!")
                 .font(.system(size: 18, weight: .bold))
                 .multilineTextAlignment(.center)
                 .foregroundColor(.black)
@@ -39,13 +39,9 @@ struct OB2_SignupScreen: View {
                     .cornerRadius(10)
                     .padding(.horizontal, 32)
             }
-
-            Spacer().frame(height: 40)
+            .padding(.bottom, 40) // Matching the splash screen
         }
         .background(Color.white.ignoresSafeArea())
     }
 }
 
-#Preview {
-    OB2_SignupScreen(onContinueWithEmail: {})
-}

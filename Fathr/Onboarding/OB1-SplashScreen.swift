@@ -17,7 +17,7 @@ struct OB1_SplashScreen: View {
                     .frame(width: UIScreen.main.bounds.width * 0.45)
                     .accessibilityLabel("Fathr Logo")
 
-                VStack(spacing: 4) {
+                VStack(spacing: 12) {
                     Text("Congratulations.")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.black)
@@ -25,11 +25,11 @@ struct OB1_SplashScreen: View {
 
                     Text("You're taking the first step toward a healthier, stronger legacy.")
                         .font(.system(size: 16, weight: .regular))
-                        .foregroundColor(.gray) // Replaced Color(hex: "6B7280") with .gray
+                        .foregroundColor(.gray)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                 }
-                .padding(.top, 8)
+                .padding(.top, 40) // Increased top padding for better vertical centering
 
                 Spacer()
 
@@ -52,6 +52,3 @@ struct OB1_SplashScreen: View {
     }
 }
 
-#Preview {
-    OB1_SplashScreen(onGetStarted: {})
-}

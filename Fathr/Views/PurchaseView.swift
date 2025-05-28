@@ -74,13 +74,13 @@ struct PurchaseView: View {
                     // Yearly Plan
                     PackageButton(
                         title: "Yearly Plan",
-                        price: offering.annual?.storeProduct.localizedPriceString ?? "$59.99 per year",
+                        price: offering.package(identifier: "yearly_pro")?.storeProduct.localizedPriceString ?? "$59.99 per year",
                         crossedOutPrice: "$311.48",
                         badgeText: "BEST VALUE",
-                        isSelected: selectedPackage?.identifier == offering.annual?.identifier,
+                        isSelected: selectedPackage?.identifier == "yearly_pro",
                         isWeeklyPlan: false,
                         action: {
-                            if let yearly = offering.annual {
+                            if let yearly = offering.package(identifier: "yearly_pro") {
                                 selectedPackage = yearly
                             }
                         }
@@ -89,12 +89,12 @@ struct PurchaseView: View {
                     // Weekly Plan with Trial
                     PackageButton(
                         title: "3-Day Free Trial",
-                        price: "then \(offering.monthly?.storeProduct.localizedPriceString ?? "$5.99") per week",
+                        price: "then \(offering.package(identifier: "weekly_pro_trial")?.storeProduct.localizedPriceString ?? "$5.99") per week",
                         badgeText: "TRY FREE",
-                        isSelected: selectedPackage?.identifier == offering.monthly?.identifier,
+                        isSelected: selectedPackage?.identifier == "weekly_pro_trial",
                         isWeeklyPlan: true,
                         action: {
-                            if let weekly = offering.monthly {
+                            if let weekly = offering.package(identifier: "weekly_pro_trial") {
                                 selectedPackage = weekly
                             }
                         }
@@ -197,9 +197,8 @@ struct PurchaseView: View {
         .onAppear {
             Task {
                 await purchaseModel.fetchOfferings()
-                // Preselect the yearly plan for better UX
-                if let offering = purchaseModel.currentOffering, let yearly = offering.annual {
-                    selectedPackage = yearly
+                if let offering = purchaseModel.currentOffering {
+                    selectedPackage = freeTrialEnabled ? offering.package(identifier: "weekly_pro_trial") : offering.package(identifier: "yearly_pro")
                 }
             }
         }
@@ -210,6 +209,11 @@ struct PurchaseView: View {
         }
         .onChange(of: purchaseModel.errorMessage) { _, newValue in
             errorMessage = newValue
+        }
+        .onChange(of: freeTrialEnabled) { _, newValue in
+            if let offering = purchaseModel.currentOffering {
+                selectedPackage = newValue ? offering.package(identifier: "weekly_pro_trial") : offering.package(identifier: "yearly_pro")
+            }
         }
     }
 }
@@ -246,18 +250,19 @@ struct PackageButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(title)
                             .font(.headline)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                         if let crossedOutPrice = crossedOutPrice {
                             HStack(spacing: 4) {
                                 Text(crossedOutPrice)
                                     .strikethrough()
                                     .foregroundColor(.gray)
                                 Text(price)
+                                    .fontWeight(.medium)
                             }
                             .font(.subheadline)
                         } else {
@@ -266,33 +271,33 @@ struct PackageButton: View {
                                 .foregroundColor(.gray)
                         }
                     }
+
                     Spacer()
-                    if let badgeText = badgeText {
-                        Text(badgeText)
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(isWeeklyPlan ? Color.green : Color.blue)
-                            .cornerRadius(4)
-                    }
-                    if isSelected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
-                    } else {
-                        Circle()
-                            .stroke(Color.gray, lineWidth: 1)
-                            .frame(width: 20, height: 20)
+
+                    VStack(alignment: .trailing, spacing: 4) {
+                        if let badge = badgeText {
+                            Text(badge)
+                                .font(.caption2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 4)
+                                .background(isWeeklyPlan ? Color.green : Color.blue)
+                                .cornerRadius(4)
+                        }
+
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .foregroundColor(isSelected ? .blue : .gray)
+                            .font(.system(size: 20))
                     }
                 }
             }
             .padding()
-            .background(isSelected ? Color.blue.opacity(0.1) : Color.white)
+            .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Color.blue : Color.gray.opacity(0.3), lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())

@@ -198,7 +198,7 @@ struct TestInputView: View {
                     } else if currentPage == 2 {
                         Section(header: Text("Motility").font(.headline).fontDesign(.rounded)) {
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Total Mobility: \(Int(totalMobility))%")
                                     Slider(value: $totalMobility, in: 0...100, step: 1)
                                         .tint(.black)
@@ -212,7 +212,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Progressive Mobility: \(Int(progressiveMobility))%")
                                     Slider(value: $progressiveMobility, in: 0...100, step: 1)
                                         .tint(.black)
@@ -226,7 +226,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Non-Progressive Mobility: \(Int(nonProgressiveMobility))%")
                                     Slider(value: $nonProgressiveMobility, in: 0...100, step: 1)
                                         .tint(.black)
@@ -254,7 +254,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Mobility Index: \(Int(mobilityIndex))%")
                                     Slider(value: $mobilityIndex, in: 0...100, step: 1)
                                         .tint(.black)
@@ -268,7 +268,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Still: \(Int(still))%")
                                     Slider(value: $still, in: 0...100, step: 1)
                                         .tint(.black)
@@ -374,7 +374,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Live Spermatozoa: \(Int(liveSpermatozoa))%")
                                     Slider(value: $liveSpermatozoa, in: 0...100, step: 1)
                                         .tint(.black)
@@ -396,7 +396,7 @@ struct TestInputView: View {
                     } else if currentPage == 4 {
                         Section(header: Text("Morphology").font(.headline).fontDesign(.rounded)) {
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Morphology Rate: \(Int(morphologyRate))%")
                                     Slider(value: $morphologyRate, in: 0...100, step: 1)
                                         .tint(.black)
@@ -410,7 +410,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Pathology: \(Int(pathology))%")
                                     Slider(value: $pathology, in: 0...100, step: 1)
                                         .tint(.black)
@@ -424,7 +424,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Head Defect: \(Int(headDefect))%")
                                     Slider(value: $headDefect, in: 0...100, step: 1)
                                         .tint(.black)
@@ -438,7 +438,7 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Neck Defect: \(Int(neckDefect))%")
                                     Slider(value: $neckDefect, in: 0...100, step: 1)
                                         .tint(.black)
@@ -452,9 +452,9 @@ struct TestInputView: View {
                             .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading) {
+                                VStack {
                                     Text("Tail Defect: \(Int(tailDefect))%")
-                                    Slider(value: $tailDefect, in: 0...100, step: 1)
+                                    Slider(value: $tailDefect, in: 0...100, step: 0.1)
                                         .tint(.black)
                                         .accessibilityLabel("Tail Defect")
                                         .accessibilityValue("\(Int(tailDefect)) percent")

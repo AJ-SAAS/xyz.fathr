@@ -40,7 +40,7 @@ struct PurchaseView: View {
                 .padding(.bottom, 8)
 
             // Subtext
-            Text("Get full access to your test results, personalized insights, and progress tracking.")
+            Text("Get full access Know more. Track better. Grow your family.")
                 .font(.subheadline)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -184,7 +184,7 @@ struct PurchaseView: View {
                         }
                     }
                 }
-                Link("Terms of Use", destination: URL(string: "https://www.fathr.xyz/r/terms")!)
+                Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                 Link("Privacy Policy", destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
             }
             .font(.caption)

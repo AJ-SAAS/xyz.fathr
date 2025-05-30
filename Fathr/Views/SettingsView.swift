@@ -50,8 +50,8 @@ struct SettingsView: View {
 
                 // Legal Section
                 Section(header: Text("Legal")) {
-                    Link("Terms of Use", destination: URL(string: "https://www.fathr.xyz/r/terms")!)
-                        .accessibilityLabel("Terms of Service")
+                    Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                        .accessibilityLabel("Apple Terms of Use")
                     Link("Privacy Policy", destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
                         .accessibilityLabel("Privacy Policy")
                 }
@@ -76,7 +76,6 @@ struct SettingsView: View {
                     .disabled(isRestoring)
                     .accessibilityLabel("Restore Purchases")
 
-                    // New Manage Subscription Button
                     Button(action: {
                         if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                             UIApplication.shared.open(url, options: [:], completionHandler: nil)
@@ -185,3 +184,4 @@ struct SettingsView_Previews: PreviewProvider {
             .environmentObject(PurchaseModel())
     }
 }
+

@@ -4,10 +4,8 @@ import FirebaseAuth
 struct RootView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @State private var showSplash: Bool = true
-    @State private var showSignUpScreen: Bool = false
+    @State private var showSignUpScreen: Bool = true
     @State private var showAuth: Bool = false
-    @State private var isLoggedIn: Bool = false
-    @State private var selectedTab: Int = 0 // For TabBarView tab selection
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
@@ -24,12 +22,11 @@ struct RootView: View {
                     showSignUpScreen = false
                     showAuth = true
                 }
-            } else if showAuth || (!isLoggedIn && hasCompletedOnboarding) {
+            } else if showAuth || (!authManager.isSignedIn && hasCompletedOnboarding) {
                 AuthView(onAuthSuccess: {
-                    isLoggedIn = true
-                    showAuth = false
+                    // No need to set isSignedIn here; AuthManager handles it
                 })
-            } else if !hasCompletedOnboarding {
+            } else if !hasCompletedOnboarding && authManager.isSignedIn {
                 OnboardingView {
                     hasCompletedOnboarding = true
                 }
@@ -40,24 +37,26 @@ struct RootView: View {
                     .environmentObject(purchaseModel)
             }
         }
-        .onAppear {
-            // Check Firebase Auth state
-            if Auth.auth().currentUser != nil {
-                isLoggedIn = true
+        .onChange(of: authManager.isSignedIn) { _, newValue in
+            if newValue {
+                // User is signed in, let hasCompletedOnboarding decide the next view
                 showAuth = false
                 showSplash = false
                 showSignUpScreen = false
             } else {
-                isLoggedIn = false
+                // User is signed out
                 showAuth = hasCompletedOnboarding
                 showSplash = !hasCompletedOnboarding
                 showSignUpScreen = false
             }
         }
-        .onChange(of: Auth.auth().currentUser) { _, newUser in
-            // Handle auth state changes (e.g., sign-out)
-            isLoggedIn = newUser != nil
-            if newUser == nil {
+        .onAppear {
+            // Initial auth state is handled by AuthManager
+            if authManager.isSignedIn {
+                showAuth = false
+                showSplash = false
+                showSignUpScreen = false
+            } else {
                 showAuth = hasCompletedOnboarding
                 showSplash = !hasCompletedOnboarding
                 showSignUpScreen = false
@@ -66,7 +65,14 @@ struct RootView: View {
     }
 }
 
-#Preview {
+#Preview("iPhone 14") {
+    RootView()
+        .environmentObject(AuthManager())
+        .environmentObject(TestStore())
+        .environmentObject(PurchaseModel())
+}
+
+#Preview("iPad Pro") {
     RootView()
         .environmentObject(AuthManager())
         .environmentObject(TestStore())

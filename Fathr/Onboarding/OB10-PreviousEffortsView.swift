@@ -12,67 +12,77 @@ struct OB10_PreviousEffortsView: View {
     var onNext: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            // Title and Subtitle
-            VStack(alignment: .leading, spacing: 8) {
-                Text("What Have You Tried Before?")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.black)
-                    .accessibilityLabel("Question: What Have You Tried Before?")
-                
-                Text("Select all that apply to understand your past efforts.")
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(.gray) // Replaced Color(hex: "6B7280") with .gray
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
-            
-            Spacer()
-            
-            // Answer Cards
-            VStack(spacing: 12) {
-                ForEach(PreviousEffortOption.allCases, id: \.rawValue) { option in
-                    Button(action: {
-                        if let index = selectedOptions.firstIndex(of: option.rawValue) {
-                            selectedOptions.remove(at: index)
-                        } else {
-                            selectedOptions.append(option.rawValue)
-                        }
-                    }) {
-                        Text(option.rawValue)
-                            .font(.system(size: 16))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(selectedOptions.contains(option.rawValue) ? Color.white : Color.white)
-                            .foregroundColor(.black)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(selectedOptions.contains(option.rawValue) ? Color.black : Color.gray.opacity(0.2), lineWidth: 2) // Replaced Color(hex: "E5E7EB") with .gray.opacity(0.2)
-                            )
-                    }
-                    .accessibilityLabel("Select \(option.rawValue)")
+        GeometryReader { geometry in
+            VStack(spacing: geometry.size.width > 600 ? 24 : 16) { // Adjust spacing for iPad
+                // Title and Subtitle
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("What Have You Tried Before?")
+                        .font(.system(.largeTitle, design: .default, weight: .bold)) // Dynamic type
+                        .foregroundColor(.black)
+                        .accessibilityLabel("Question: What Have You Tried Before?")
+                    
+                    Text("Select all that apply to understand your past efforts.")
+                        .font(.system(.subheadline, design: .default, weight: .regular)) // Dynamic type
+                        .foregroundColor(.gray)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, geometry.size.width > 600 ? 64 : 32) // Adjust for iPad
+                .padding(.top, geometry.size.width > 600 ? 40 : 24) // Adjust top padding
+                
+                Spacer()
+                
+                // Answer Cards
+                VStack(spacing: 12) {
+                    ForEach(PreviousEffortOption.allCases, id: \.rawValue) { option in
+                        Button(action: {
+                            if let index = selectedOptions.firstIndex(of: option.rawValue) {
+                                selectedOptions.remove(at: index)
+                            } else {
+                                selectedOptions.append(option.rawValue)
+                            }
+                        }) {
+                            Text(option.rawValue)
+                                .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                                .frame(maxWidth: min(geometry.size.width * 0.9, 600), alignment: .leading) // Cap card width
+                                .padding()
+                                .background(selectedOptions.contains(option.rawValue) ? Color.white : Color.white)
+                                .foregroundColor(.black)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(selectedOptions.contains(option.rawValue) ? Color.black : Color.gray.opacity(0.2), lineWidth: 2)
+                                )
+                        }
+                        .accessibilityLabel("Select \(option.rawValue)")
+                    }
+                }
+                .padding(.horizontal, geometry.size.width > 600 ? 64 : 32) // Adjust for iPad
+                
+                Spacer()
+                
+                // Next Button
+                Button(action: onNext) {
+                    Text("Next")
+                        .font(.system(.headline, design: .default, weight: .semibold)) // Dynamic type
+                        .foregroundColor(.white)
+                        .frame(maxWidth: min(geometry.size.width * 0.8, 400)) // Cap button width
+                        .padding()
+                        .background(.black)
+                        .cornerRadius(8)
+                }
+                .accessibilityLabel("Continue to next step")
+                .padding(.horizontal, geometry.size.width > 600 ? 64 : 32) // Adjust for iPad
+                .padding(.bottom, geometry.size.width > 600 ? 60 : 40) // Adjust for iPad
             }
-            .padding(.horizontal)
-            
-            Spacer()
-            
-            // Next Button
-            Button(action: onNext) {
-                Text("Next")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.black)
-                    .cornerRadius(8)
-            }
-            .accessibilityLabel("Continue to next step")
-            .padding(.horizontal)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.ignoresSafeArea())
         }
     }
 }
 
-#Preview {
+#Preview("iPhone 14") {
+    OB10_PreviousEffortsView(selectedOptions: .constant([]), onNext: {})
+}
+
+#Preview("iPad Pro") {
     OB10_PreviousEffortsView(selectedOptions: .constant([]), onNext: {})
 }

@@ -8,51 +8,65 @@ struct TabBarView: View {
     @State private var showPaywall: Bool = false
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { selectedTab },
-            set: { newValue in
-                if newValue == 1 && !purchaseModel.isSubscribed {
-                    showPaywall = true
-                } else {
-                    selectedTab = newValue
+        GeometryReader { geometry in
+            TabView(selection: Binding(
+                get: { selectedTab },
+                set: { newValue in
+                    if newValue == 1 && !purchaseModel.isSubscribed {
+                        showPaywall = true
+                    } else {
+                        selectedTab = newValue
+                    }
                 }
+            )) {
+                DashboardView(selectedTab: $selectedTab)
+                    .tabItem {
+                        Label("Home", systemImage: "house")
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                    }
+                    .environmentObject(testStore)
+                    .environmentObject(purchaseModel)
+                    .tag(0)
+                    .padding(.bottom, geometry.size.width > 600 ? 20 : 10) // Adjust for iPad
+
+                TrackView()
+                    .tabItem {
+                        Label("Track", systemImage: "plus.circle")
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                    }
+                    .environmentObject(testStore)
+                    .environmentObject(purchaseModel)
+                    .tag(1)
+                    .padding(.bottom, geometry.size.width > 600 ? 20 : 10) // Adjust for iPad
+
+                SettingsView()
+                    .tabItem {
+                        Label("More", systemImage: "gear")
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                    }
+                    .environmentObject(testStore)
+                    .environmentObject(purchaseModel)
+                    .tag(2)
+                    .padding(.bottom, geometry.size.width > 600 ? 20 : 10) // Adjust for iPad
             }
-        )) {
-            DashboardView(selectedTab: $selectedTab)
-                .tabItem {
-                    Label("Home", systemImage: "house")
-                }
-                .environmentObject(testStore)
-                .environmentObject(purchaseModel)
-                .tag(0)
-
-            TrackView()
-                .tabItem {
-                    Label("Track", systemImage: "plus.circle")
-                }
-                .environmentObject(testStore)
-                .environmentObject(purchaseModel)
-                .tag(1)
-
-            SettingsView()
-                .tabItem {
-                    Label("More", systemImage: "gear")
-                }
-                .environmentObject(testStore)
-                .environmentObject(purchaseModel)
-                .tag(2)
-        }
-        .sheet(isPresented: $showPaywall) {
-            PurchaseView(isPresented: $showPaywall, purchaseModel: purchaseModel)
+            .sheet(isPresented: $showPaywall) {
+                PurchaseView(isPresented: $showPaywall, purchaseModel: purchaseModel)
+            }
+            .padding(.bottom, geometry.size.width > 600 ? 20 : 0) // Adjust tab bar padding for iPad
         }
     }
 }
 
-struct TabBarView_Previews: PreviewProvider {
-    static var previews: some View {
-        TabBarView()
-            .environmentObject(AuthManager())
-            .environmentObject(TestStore())
-            .environmentObject(PurchaseModel())
-    }
+#Preview("iPhone 14") {
+    TabBarView()
+        .environmentObject(AuthManager())
+        .environmentObject(TestStore())
+        .environmentObject(PurchaseModel())
+}
+
+#Preview("iPad Pro") {
+    TabBarView()
+        .environmentObject(AuthManager())
+        .environmentObject(TestStore())
+        .environmentObject(PurchaseModel())
 }

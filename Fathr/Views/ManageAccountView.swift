@@ -11,65 +11,110 @@ struct ManageAccountView: View {
     @State private var successMessage: String?
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Update Email")) {
-                    TextField("Email", text: $email)
-                        .textContentType(.emailAddress)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .accessibilityLabel("Email")
-                }
+        GeometryReader { geometry in
+            NavigationStack {
+                Form {
+                    Section(header: Text("Update Email")
+                                .font(.system(.headline, design: .default, weight: .bold))) { // Dynamic type
+                        TextField("Email", text: $email)
+                            .textContentType(.emailAddress)
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                            .padding()
+                            .background(.gray.opacity(0.1))
+                            .cornerRadius(8)
+                            .frame(maxWidth: min(geometry.size.width * 0.9, 600)) // Cap field width
+                            .accessibilityLabel("Email")
+                    }
+                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
 
-                Section(header: Text("Update Password")) {
-                    SecureField("New Password", text: $password)
-                        .textContentType(.newPassword)
-                        .accessibilityLabel("New Password")
-                    SecureField("Confirm Password", text: $confirmPassword)
-                        .textContentType(.newPassword)
-                        .accessibilityLabel("Confirm Password")
-                }
+                    Section(header: Text("Update Password")
+                                .font(.system(.headline, design: .default, weight: .bold))) { // Dynamic type
+                        SecureField("New Password", text: $password)
+                            .textContentType(.newPassword)
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                            .padding()
+                            .background(.gray.opacity(0.1))
+                            .cornerRadius(8)
+                            .frame(maxWidth: min(geometry.size.width * 0.9, 600)) // Cap field width
+                            .accessibilityLabel("New Password")
+                        
+                        SecureField("Confirm Password", text: $confirmPassword)
+                            .textContentType(.newPassword)
+                            .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                            .padding()
+                            .background(.gray.opacity(0.1))
+                            .cornerRadius(8)
+                            .frame(maxWidth: min(geometry.size.width * 0.9, 600)) // Cap field width
+                            .accessibilityLabel("Confirm Password")
+                    }
+                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
 
-                if let error = errorMessage {
-                    Text(error)
+                    if let error = errorMessage {
+                        Text(error)
+                            .font(.system(.subheadline, design: .default, weight: .regular)) // Dynamic type
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
+                            .accessibilityLabel("Error: \(error)")
+                    }
+
+                    if let success = successMessage {
+                        Text(success)
+                            .font(.system(.subheadline, design: .default, weight: .regular)) // Dynamic type
+                            .foregroundColor(.green)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
+                            .accessibilityLabel("Success: \(success)")
+                    }
+
+                    Section {
+                        Button("Update Account") {
+                            updateAccount()
+                        }
+                        .font(.system(.headline, design: .default, weight: .semibold)) // Dynamic type
+                        .foregroundColor(.black)
+                        .frame(maxWidth: min(geometry.size.width * 0.8, 400)) // Cap button width
+                        .padding()
+                        .background(email.isEmpty || (password != confirmPassword) ? .gray : .white)
+                        .cornerRadius(8)
+                        .disabled(email.isEmpty || (password != confirmPassword))
+                        .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
+                        .accessibilityLabel("Update Account")
+                        
+                        Button("Delete Account") {
+                            showingDeleteAlert = true
+                        }
+                        .font(.system(.headline, design: .default, weight: .semibold)) // Dynamic type
                         .foregroundColor(.red)
-                        .accessibilityLabel("Error: \(error)")
-                }
-
-                if let success = successMessage {
-                    Text(success)
-                        .foregroundColor(.green)
-                        .accessibilityLabel("Success: \(success)")
-                }
-
-                Section {
-                    Button("Update Account") {
-                        updateAccount()
+                        .frame(maxWidth: min(geometry.size.width * 0.8, 400)) // Cap button width
+                        .padding()
+                        .background(.white)
+                        .cornerRadius(8)
+                        .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
+                        .accessibilityLabel("Delete Account")
                     }
-                    .disabled(email.isEmpty || (password != confirmPassword))
-                    .accessibilityLabel("Update Account")
-
-                    Button("Delete Account") {
-                        showingDeleteAlert = true
+                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16) // Adjust for iPad
+                }
+                .navigationTitle("Manage Account")
+                .padding(.vertical, geometry.size.width > 600 ? 40 : 24) // Adjust vertical padding
+                .alert("Delete Account", isPresented: $showingDeleteAlert) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Delete", role: .destructive) {
+                        deleteAccount()
                     }
-                    .foregroundColor(.red)
-                    .accessibilityLabel("Delete Account")
+                } message: {
+                    Text("This will permanently delete your account and all data. Are you sure?")
+                }
+                .onAppear {
+                    if let user = Auth.auth().currentUser {
+                        email = user.email ?? ""
+                    }
                 }
             }
-            .navigationTitle("Manage Account")
-            .alert("Delete Account", isPresented: $showingDeleteAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
-                    deleteAccount()
-                }
-            } message: {
-                Text("This will permanently delete your account and all data. Are you sure?")
-            }
-            .onAppear {
-                if let user = Auth.auth().currentUser {
-                    email = user.email ?? ""
-                }
-            }
+            .frame(maxWidth: .infinity)
+            .background(Color.white.ignoresSafeArea())
         }
     }
 
@@ -139,9 +184,12 @@ struct ManageAccountView: View {
     }
 }
 
-struct ManageAccountView_Previews: PreviewProvider {
-    static var previews: some View {
-        ManageAccountView()
-            .environmentObject(AuthManager())
-    }
+#Preview("iPhone 14") {
+    ManageAccountView()
+        .environmentObject(AuthManager())
+}
+
+#Preview("iPad Pro") {
+    ManageAccountView()
+        .environmentObject(AuthManager())
 }

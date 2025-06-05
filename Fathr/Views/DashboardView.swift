@@ -199,6 +199,7 @@ struct FertilitySnapshotView: View {
             let averages = calculateAverages()
             let trend = calculateTrend()
             HStack(alignment: .top, spacing: 16) {
+                // Fathr Score Card
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your Fathr Score")
                         .font(.headline)
@@ -212,12 +213,15 @@ struct FertilitySnapshotView: View {
                             .font(.caption)
                             .foregroundColor(.gray)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: 160)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(15)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure content fills the card
                 }
-                .frame(maxWidth: .infinity)
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: 160) // Equal width and fixed height
+                .background(Color(.systemGray6))
+                .cornerRadius(15)
+                .shadow(color: .gray.opacity(0.1), radius: 5)
+
+                // Fertility Snapshot Card
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Fertility Snapshot")
                         .font(.headline)
@@ -242,14 +246,16 @@ struct FertilitySnapshotView: View {
                         }
                         .accessibilityLabel("View Full Analysis")
                     }
+                    Spacer() // Push content to top, ensuring consistent alignment
                 }
                 .padding()
+                .frame(maxWidth: .infinity, maxHeight: 160) // Equal width and fixed height
                 .background(Color.white)
                 .cornerRadius(15)
                 .shadow(color: .gray.opacity(0.1), radius: 5)
-                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal)
+            .padding(.horizontal) // Consistent padding for the entire row
+            .frame(maxWidth: .infinity) // Ensure the HStack stretches across the screen
         }
     }
 
@@ -703,10 +709,11 @@ struct MetricCardView: View {
             }
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading) // Ensure the view stretches to full width
         .background(Color.white)
         .cornerRadius(10)
         .shadow(radius: 2)
-        .padding(.horizontal)
+        .padding(.horizontal) // Keep consistent horizontal padding
     }
 }
 

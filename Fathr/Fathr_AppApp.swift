@@ -5,7 +5,7 @@ import FirebaseCrashlytics
 import RevenueCat
 
 @main
-struct Sperm_Test_Results_AppApp: App {
+struct Fathr_AppApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var testStore = TestStore()
     @StateObject private var purchaseModel = PurchaseModel()

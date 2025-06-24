@@ -3,9 +3,28 @@ import FirebaseCore
 import FirebaseAnalytics
 import FirebaseCrashlytics
 import RevenueCat
+import UIKit
+
+// MARK: - AppDelegate for Light Mode Override
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+
+        // Force Light Mode for all windows
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            windowScene.windows.forEach { window in
+                window.overrideUserInterfaceStyle = .light
+            }
+        }
+
+        return true
+    }
+}
 
 @main
 struct Fathr_AppApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @StateObject private var authManager = AuthManager()
     @StateObject private var testStore = TestStore()
     @StateObject private var purchaseModel = PurchaseModel()
@@ -45,3 +64,4 @@ struct Fathr_AppApp: App {
         }
     }
 }
+

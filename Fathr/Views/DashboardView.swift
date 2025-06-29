@@ -338,9 +338,7 @@ struct FertilitySnapshotView: View {
         guard testStore.tests.count > 1 else { return .none }
 
         let latestTest = testStore.tests[0]
-        let motilityScore = min((latestTest.totalMobility ?? testStore.tests[0].totalMobility
-                                 
- ?? 0.0) * 2.5, 100.0)
+        let motilityScore = min((latestTest.totalMobility ?? testStore.tests[0].totalMobility ?? 0.0) * 2.5, 100.0)
         let concentrationScore: Double = {
             let conc = latestTest.spermConcentration ?? 0.0
             return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
@@ -405,13 +403,13 @@ struct CoreMetricsOverviewView: View {
             if let latestTest = testStore.tests.first {
                 ProgressBarView(
                     label: "Analysis",
-                    value: calculateAnalysisScore(latestTest),
+                    value: min(calculateAnalysisScore(latestTest), 100),
                     maxValue: 100
                 )
                 
                 ProgressBarView(
                     label: "Motility",
-                    value: latestTest.totalMobility ?? 0,
+                    value: min(latestTest.totalMobility ?? 0, 100),
                     maxValue: 100
                 )
                 
@@ -423,7 +421,7 @@ struct CoreMetricsOverviewView: View {
                 
                 ProgressBarView(
                     label: "Morphology",
-                    value: latestTest.morphologyRate ?? 0,
+                    value: min(latestTest.morphologyRate ?? 0, 100),
                     maxValue: 100
                 )
                 
@@ -463,22 +461,32 @@ struct ProgressBarView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(label)
-                    .font(.subheadline)
+                    .font(.system(size: 17))
                     .fontDesign(.rounded)
                     .foregroundColor(.black)
                 Spacer()
                 Text("\(Int(value))/100")
-                    .font(.subheadline)
+                    .font(.system(size: 17))
                     .fontDesign(.rounded)
                     .foregroundColor(.black)
             }
-            ProgressView(value: value, total: maxValue)
-                .progressViewStyle(.linear)
-                .tint(.black)
-                .background(Color.gray.opacity(0.2))
-                .clipShape(RoundedRectangle(cornerRadius: 4))
+            ZStack(alignment: .leading) {
+                // Full bar (unfilled portion) in lighter shade
+                Rectangle()
+                    .fill(barColor.opacity(0.3))
+                    .frame(height: 18)
+                // Filled portion
+                Rectangle()
+                    .fill(barColor)
+                    .frame(width: CGFloat(value / maxValue) * UIScreen.main.bounds.width * 0.9, height: 18)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .padding(.horizontal)
+    }
+    
+    private var barColor: Color {
+        value > 75 ? .green : value >= 25 ? .yellow : .orange
     }
 }
 

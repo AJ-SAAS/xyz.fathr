@@ -392,7 +392,7 @@ struct CoreMetricsOverviewView: View {
     @EnvironmentObject var testStore: TestStore
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("How You're Doing")
                 .font(.title2)
                 .fontDesign(.rounded)
@@ -481,12 +481,21 @@ struct ProgressBarView: View {
                     .frame(width: CGFloat(value / maxValue) * UIScreen.main.bounds.width * 0.9, height: 18)
             }
             .clipShape(RoundedRectangle(cornerRadius: 4))
+            Text(statusText)
+                .font(.system(size: 13))
+                .fontDesign(.rounded)
+                .foregroundColor(barColor)
+                .padding(.leading, 2)
         }
         .padding(.horizontal)
     }
     
     private var barColor: Color {
         value > 75 ? .green : value >= 25 ? .yellow : .orange
+    }
+    
+    private var statusText: String {
+        value > 75 ? "Optimal" : value >= 25 ? "Needs boost" : "Low"
     }
 }
 

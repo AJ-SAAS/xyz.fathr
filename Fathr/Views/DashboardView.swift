@@ -5,6 +5,17 @@ enum Trend {
     case up, down, none
 }
 
+// Move Color extension to file scope
+extension Color {
+    func darker(by percentage: Double) -> Color {
+        let components = UIColor(self).cgColor.components ?? [0, 0, 0, 1]
+        let red = max(components[0] - CGFloat(percentage), 0)
+        let green = max(components[1] - CGFloat(percentage), 0)
+        let blue = max(components[2] - CGFloat(percentage), 0)
+        return Color(UIColor(red: red, green: green, blue: blue, alpha: components[3]))
+    }
+}
+
 struct DashboardView: View {
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
@@ -197,28 +208,29 @@ struct FertilitySnapshotView: View {
     var body: some View {
         if !testStore.tests.isEmpty {
             let averages = calculateAverages()
-            let trend = calculateTrend()
+            let scoreStatus = averages.overallScore >= 70 ? "good" : "bad"
             HStack(alignment: .top, spacing: 16) {
-                // Fathr Score Card
-                VStack(alignment: .leading, spacing: 8) {
+                // Your Fathr Score Card
+                VStack(alignment: .center, spacing: 8) {
                     Text("Your Fathr Score")
                         .font(.headline)
                         .fontDesign(.rounded)
                         .foregroundColor(.black)
-                    VStack {
-                        Text(String(format: "%.1f", averages.overallScore))
-                            .font(.largeTitle.bold())
-                            .foregroundColor(.black)
-                        Text(trend == .up ? "↑ Improving" : trend == .down ? "↓ Declining" : "– Stable")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure content fills the card
+                    Text(String(format: "%.1f", averages.overallScore))
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundColor(.black)
+                    Text(scoreStatus == "good" ? "In the fertile zone" : "Needs boosting")
+                        .font(.caption)
+                        .foregroundColor(scoreStatus == "good" ? Color.green.darker(by: 0.2) : Color.yellow.darker(by: 0.2))
                 }
                 .padding()
-                .frame(maxWidth: .infinity, maxHeight: 160) // Equal width and fixed height
-                .background(Color(.systemGray6))
+                .frame(maxWidth: .infinity, maxHeight: 160)
+                .background(Color.white)
                 .cornerRadius(15)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 15)
+                        .stroke(Color.black, lineWidth: 1)
+                )
                 .shadow(color: .gray.opacity(0.1), radius: 5)
 
                 // Fertility Snapshot Card
@@ -246,16 +258,16 @@ struct FertilitySnapshotView: View {
                         }
                         .accessibilityLabel("View Full Analysis")
                     }
-                    Spacer() // Push content to top, ensuring consistent alignment
+                    Spacer()
                 }
                 .padding()
-                .frame(maxWidth: .infinity, maxHeight: 160) // Equal width and fixed height
+                .frame(maxWidth: .infinity, maxHeight: 160)
                 .background(Color.white)
                 .cornerRadius(15)
                 .shadow(color: .gray.opacity(0.1), radius: 5)
             }
-            .padding(.horizontal) // Consistent padding for the entire row
-            .frame(maxWidth: .infinity) // Ensure the HStack stretches across the screen
+            .padding(.horizontal)
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -326,7 +338,9 @@ struct FertilitySnapshotView: View {
         guard testStore.tests.count > 1 else { return .none }
 
         let latestTest = testStore.tests[0]
-        let motilityScore = min((latestTest.totalMobility ?? 0.0) * 2.5, 100.0)
+        let motilityScore = min((latestTest.totalMobility ?? testStore.tests[0].totalMobility
+                                 
+ ?? 0.0) * 2.5, 100.0)
         let concentrationScore: Double = {
             let conc = latestTest.spermConcentration ?? 0.0
             return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
@@ -357,7 +371,8 @@ struct FertilitySnapshotView: View {
         }
         let totalDna = previousTests.reduce(0.0) {
             let dna = Double($1.dnaFragmentationRisk ?? 0)
-            return $0 + max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            return $0 + score
         }
         let totalAnalysis = previousTests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
 
@@ -709,11 +724,11 @@ struct MetricCardView: View {
             }
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading) // Ensure the view stretches to full width
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.white)
         .cornerRadius(10)
         .shadow(radius: 2)
-        .padding(.horizontal) // Keep consistent horizontal padding
+        .padding(.horizontal)
     }
 }
 

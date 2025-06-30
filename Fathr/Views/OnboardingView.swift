@@ -3,9 +3,7 @@ import FirebaseAuth
 
 struct OnboardingView: View {
     @State private var step: Int = 0
-    @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding: Bool = false
-
-    // User input states
+    @Binding var hasCompletedOnboarding: Bool
     @State private var goal: String = ""
     @State private var situation: String = ""
     @State private var ageGroup: String = ""
@@ -20,16 +18,15 @@ struct OnboardingView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: geometry.size.width > 600 ? 32 : 24) { // Adjust spacing for iPad
-                // Header with Back button
+            VStack(spacing: geometry.size.width > 600 ? 32 : 24) {
                 HStack {
                     if step > 0 {
                         Button(action: { step -= 1 }) {
                             Image(systemName: "chevron-left")
-                            .font(.system(.body, design: .default, weight: .bold)) // Dynamic type
-                            .foregroundColor(.white)
-                            .padding(.horizontal, geometry.size.width > 600 ? 64 : 32) // Adjust for iPad
-                            .accessibilityLabel("Go back to Previous Step")
+                                .font(.system(.body, design: .default, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
+                                .accessibilityLabel("Go back to Previous Step")
                         }
                     } else {
                         Spacer()
@@ -37,17 +34,15 @@ struct OnboardingView: View {
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, geometry.size.width > 600 ? 16 : 8) // Adjust for iPad
-                
-                // Progress Bar: 11 steps (0 to 10)
-                ProgressView(value: Double(step), total: 10.0)
+                .padding(.vertical, geometry.size.width > 600 ? 16 : 8)
+
+                ProgressView(value: Double(step), total: 7.0)
                     .progressViewStyle(LinearProgressViewStyle())
                     .tint(.black)
-                    .frame(maxWidth: min(geometry.size.width * 0.9, 600)) // Cap progress bar width
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32) // Adjust for iPad
-                    .accessibilityLabel("Onboarding progress: step \(step + 1) of 11")
-                
-                // Onboarding steps
+                    .frame(maxWidth: min(geometry.size.width * 0.9, 600))
+                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
+                    .accessibilityLabel("Onboarding progress: step \(step + 1) of 8")
+
                 switch step {
                 case 0:
                     OB3_GoalView(selectedOption: $goal, onNext: { step += 1 })
@@ -64,28 +59,30 @@ struct OnboardingView: View {
                 case 6:
                     OB11_ImpactView(onNext: { step += 1 })
                 case 7:
-                    OB12_LoadingView(onNext: { step += 1 })
-                case 8:
-                    OB13_BaselineView(onNext: { step += 1 })
-                case 9:
-                    OB15_WhyFathrView(onNext: { step += 1 })
-                case 10:
-                    OB20_DashboardPreviewView(onNext: {
-                        hasCompletedOnboarding = true
-                        onComplete()
-                    })
+                    OB12_LoadingView(
+                        onNext: {
+                            hasCompletedOnboarding = true
+                            onComplete()
+                        },
+                        goal: $goal,
+                        situation: $situation,
+                        ageGroup: $ageGroup,
+                        energyLevel: $energyLevel,
+                        stressLevel: $stressLevel,
+                        previousEfforts: $previousEfforts
+                    )
                 default:
                     Text("Something went wrong")
-                        .font(.system(.body, design: .default, weight: .regular)) // Dynamic type
+                        .font(.system(.body, design: .default, weight: .regular))
                         .foregroundColor(.black)
                         .onAppear { step = 0 }
                         .accessibilityLabel("Error: Invalid onboarding step")
                 }
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, geometry.size.width > 600 ? 40 : 24) // Adjust vertical padding
+            .padding(.vertical, geometry.size.width > 600 ? 40 : 24)
             .background(Color.white.ignoresSafeArea())
             .animation(.easeInOut, value: step)
             .transition(.slide)
@@ -94,9 +91,9 @@ struct OnboardingView: View {
 }
 
 #Preview("iPhone 14") {
-    OnboardingView(onComplete: {})
+    OnboardingView(hasCompletedOnboarding: .constant(false), onComplete: {})
 }
 
 #Preview("iPad Pro") {
-    OnboardingView(onComplete: {})
+    OnboardingView(hasCompletedOnboarding: .constant(false), onComplete: {})
 }

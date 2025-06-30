@@ -31,6 +31,15 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    // Logo at top center
+                    Image("Fathr_logo_dash")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 120)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 16)
+                        .padding(.bottom, 8)
+                    
                     WelcomeHeaderView(showInput: $showInput)
                     
                     // Show premium content only if tests exist
@@ -858,3 +867,4 @@ struct DashboardView_Previews: PreviewProvider {
             .environmentObject(PurchaseModel())
     }
 }
+

@@ -5,12 +5,14 @@ import FirebaseFirestore
 struct OB12_LoadingView: View {
     var onNext: () -> Void
     @State private var progress: Double = 0.0
+    @State private var showPurchaseView: Bool = false
     @Binding var goal: String
     @Binding var situation: String
     @Binding var ageGroup: String
     @Binding var energyLevel: String
     @Binding var stressLevel: String
     @Binding var previousEfforts: [String]
+    @EnvironmentObject var purchaseModel: PurchaseModel
 
     var body: some View {
         GeometryReader { geometry in
@@ -48,6 +50,13 @@ struct OB12_LoadingView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, geometry.size.width > 600 ? 40 : 24)
             .background(Color.white.ignoresSafeArea())
+            .sheet(isPresented: $showPurchaseView, onDismiss: {
+                print("OB12_LoadingView: PurchaseView dismissed, calling onNext")
+                onNext()
+            }) {
+                PurchaseView(isPresented: $showPurchaseView, purchaseModel: purchaseModel)
+                    .environmentObject(purchaseModel)
+            }
             .onAppear {
                 if let userId = Auth.auth().currentUser?.uid {
                     print("OB12_LoadingView: Saving onboarding data for user \(userId)")
@@ -63,27 +72,25 @@ struct OB12_LoadingView: View {
                     ], merge: true) { error in
                         if let error = error {
                             print("OB12_LoadingView: Error saving onboarding data: \(error.localizedDescription)")
-                            // Optional: Alert user or retry
                         } else {
                             print("OB12_LoadingView: Onboarding data saved successfully")
                             withAnimation(.linear(duration: 2)) {
                                 progress = 1.0
                             }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                print("OB12_LoadingView: Calling onNext")
-                                onNext()
+                                print("OB12_LoadingView: Showing PurchaseView")
+                                showPurchaseView = true
                             }
                         }
                     }
                 } else {
                     print("OB12_LoadingView: No user ID, cannot save onboarding data")
-                    // Handle missing user ID (rare, as user should be signed in)
                     withAnimation(.linear(duration: 2)) {
                         progress = 1.0
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        print("OB12_LoadingView: Calling onNext (no user ID)")
-                        onNext()
+                        print("OB12_LoadingView: Showing PurchaseView (no user ID)")
+                        showPurchaseView = true
                     }
                 }
             }
@@ -92,9 +99,27 @@ struct OB12_LoadingView: View {
 }
 
 #Preview("iPhone 14") {
-    OB12_LoadingView(onNext: {}, goal: .constant(""), situation: .constant(""), ageGroup: .constant(""), energyLevel: .constant(""), stressLevel: .constant(""), previousEfforts: .constant([]))
+    OB12_LoadingView(
+        onNext: {},
+        goal: .constant(""),
+        situation: .constant(""),
+        ageGroup: .constant(""),
+        energyLevel: .constant(""),
+        stressLevel: .constant(""),
+        previousEfforts: .constant([])
+    )
+    .environmentObject(PurchaseModel())
 }
 
 #Preview("iPad Pro") {
-    OB12_LoadingView(onNext: {}, goal: .constant(""), situation: .constant(""), ageGroup: .constant(""), energyLevel: .constant(""), stressLevel: .constant(""), previousEfforts: .constant([]))
+    OB12_LoadingView(
+        onNext: {},
+        goal: .constant(""),
+        situation: .constant(""),
+        ageGroup: .constant(""),
+        energyLevel: .constant(""),
+        stressLevel: .constant(""),
+        previousEfforts: .constant([])
+    )
+    .environmentObject(PurchaseModel())
 }

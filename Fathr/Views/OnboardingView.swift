@@ -13,6 +13,7 @@ struct OnboardingView: View {
     @State private var improvements: [String] = []
     @State private var previousEfforts: [String] = []
     @State private var trackingMethods: [String] = []
+    @EnvironmentObject var purchaseModel: PurchaseModel
 
     var onComplete: () -> Void
 
@@ -22,9 +23,9 @@ struct OnboardingView: View {
                 HStack {
                     if step > 0 {
                         Button(action: { step -= 1 }) {
-                            Image(systemName: "chevron-left")
+                            Image(systemName: "chevron.left")
                                 .font(.system(.body, design: .default, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                                 .accessibilityLabel("Go back to Previous Step")
                         }
@@ -36,29 +37,37 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, geometry.size.width > 600 ? 16 : 8)
 
-                ProgressView(value: Double(step), total: 7.0)
-                    .progressViewStyle(LinearProgressViewStyle())
-                    .tint(.black)
-                    .frame(maxWidth: min(geometry.size.width * 0.9, 600))
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                    .accessibilityLabel("Onboarding progress: step \(step + 1) of 8")
+                // Show progress bar only for steps 1 and above (OB3_GoalView onward)
+                if step > 0 {
+                    ProgressView(value: Double(step - 1), total: 7.0)
+                        .progressViewStyle(LinearProgressViewStyle())
+                        .tint(.black)
+                        .frame(maxWidth: min(geometry.size.width * 0.9, 600))
+                        .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
+                        .accessibilityLabel("Onboarding progress: step \(step) of 8")
+                }
 
                 switch step {
                 case 0:
-                    OB3_GoalView(selectedOption: $goal, onNext: { step += 1 })
+                    OB3_ValueCarousel {
+                        step += 1
+                        print("OnboardingView: Transitioned to OB3_GoalView")
+                    }
                 case 1:
-                    OB4_SituationView(selectedOption: $situation, onNext: { step += 1 })
+                    OB3_GoalView(selectedOption: $goal, onNext: { step += 1 })
                 case 2:
-                    OB5_AgeGroupView(selectedOption: $ageGroup, onNext: { step += 1 })
+                    OB4_SituationView(selectedOption: $situation, onNext: { step += 1 })
                 case 3:
-                    OB6_EnergyLevelView(selectedOption: $energyLevel, onNext: { step += 1 })
+                    OB5_AgeGroupView(selectedOption: $ageGroup, onNext: { step += 1 })
                 case 4:
-                    OB7_StressLevelView(selectedOption: $stressLevel, onNext: { step += 1 })
+                    OB6_EnergyLevelView(selectedOption: $energyLevel, onNext: { step += 1 })
                 case 5:
-                    OB10_PreviousEffortsView(selectedOptions: $previousEfforts, onNext: { step += 1 })
+                    OB7_StressLevelView(selectedOption: $stressLevel, onNext: { step += 1 })
                 case 6:
-                    OB11_ImpactView(onNext: { step += 1 })
+                    OB10_PreviousEffortsView(selectedOptions: $previousEfforts, onNext: { step += 1 })
                 case 7:
+                    OB11_ImpactView(onNext: { step += 1 })
+                case 8:
                     OB12_LoadingView(
                         onNext: {
                             hasCompletedOnboarding = true
@@ -71,6 +80,7 @@ struct OnboardingView: View {
                         stressLevel: $stressLevel,
                         previousEfforts: $previousEfforts
                     )
+                    .environmentObject(purchaseModel)
                 default:
                     Text("Something went wrong")
                         .font(.system(.body, design: .default, weight: .regular))
@@ -86,14 +96,19 @@ struct OnboardingView: View {
             .background(Color.white.ignoresSafeArea())
             .animation(.easeInOut, value: step)
             .transition(.slide)
+            .onAppear {
+                print("OnboardingView: Appeared at step \(step)")
+            }
         }
     }
 }
 
 #Preview("iPhone 14") {
     OnboardingView(hasCompletedOnboarding: .constant(false), onComplete: {})
+        .environmentObject(PurchaseModel())
 }
 
 #Preview("iPad Pro") {
     OnboardingView(hasCompletedOnboarding: .constant(false), onComplete: {})
+        .environmentObject(PurchaseModel())
 }

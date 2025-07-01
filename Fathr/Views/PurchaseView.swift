@@ -36,7 +36,9 @@ struct PurchaseView: View {
                 
                 // Headline
                 Text("Unlimited Access")
-                    .font(.system(.title2, design: .default, weight: .bold))
+                    .font(.custom("SFProDisplay-Bold", size: 25))
+                    .font(.system(size: 25, weight: .bold)) // Fallback to ensure boldness
+                    // Optional: Use .font(.custom("SFProDisplay-Black", size: 25)) for heavier weight
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                     .padding(.bottom, 4)
@@ -51,7 +53,7 @@ struct PurchaseView: View {
                     .padding(.bottom, 12)
                 
                 // Features list
-                VStack(alignment: .leading, spacing: 10) { // Increased spacing
+                VStack(alignment: .leading, spacing: 14) {
                     FeatureRow(text: "Track unlimited sperm test results")
                     FeatureRow(text: "Get easy tips to boost fertility")
                     FeatureRow(text: "See patterns in your sperm health")
@@ -103,7 +105,7 @@ struct PurchaseView: View {
                         
                         // Weekly Plan with Trial
                         PackageButton(
-                            title: "3-Day Free Trial",
+                            title: "3-Day Trial",
                             price: "then \(offering.package(identifier: "weekly_pro_trial")?.storeProduct.localizedPriceString ?? "$5.99") per week",
                             badgeText: "TRY FREE",
                             isSelected: selectedPackage?.identifier == "weekly_pro_trial",
@@ -159,8 +161,8 @@ struct PurchaseView: View {
                             .foregroundColor(.gray)
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
-                    .padding(.top, 8) // Increased top padding
-                    .padding(.bottom, 8) // Added bottom padding
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
                     
                     // Purchase button
                     Button(action: {
@@ -224,12 +226,12 @@ struct PurchaseView: View {
                 .padding(.top, 8)
                 .padding(.bottom, geometry.size.width > 600 ? 16 : 8)
                 
-                Spacer() // Push content to top
+                Spacer()
             }
             .frame(maxWidth: .infinity)
-            .ignoresSafeArea(.container, edges: .top) // Remove top gap
+            .ignoresSafeArea(.container, edges: .top)
             .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: 8) // Minimal bottom padding
+                Color.clear.frame(height: 8)
             }
             .onAppear {
                 Task {
@@ -262,10 +264,10 @@ struct FeatureRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(.headline, design: .default, weight: .regular)) // Match text size
+                .font(.custom("SFProDisplay-Regular", size: 19))
                 .foregroundColor(.blue)
             Text(text)
-                .font(.system(.headline, design: .default, weight: .regular)) // Non-bold, headline size
+                .font(.custom("SFProDisplay-Regular", size: 19))
                 .foregroundColor(.black)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -284,7 +286,9 @@ struct PackageButton: View {
     private var pricingView: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.system(.headline, design: .default, weight: .semibold))
+                .font(.custom("SFProDisplay-Bold", size: 16))
+                .font(.system(size: 16, weight: .bold)) // Fallback to ensure boldness
+                // Optional: Use .font(.custom("SFProDisplay-Black", size: 16)) for heavier weight
             if let crossedOutPrice = crossedOutPrice {
                 HStack(spacing: 4) {
                     Text(crossedOutPrice)
@@ -293,11 +297,12 @@ struct PackageButton: View {
                     Text(price)
                         .fontWeight(.medium)
                 }
-                .font(.system(.subheadline, design: .default, weight: .regular))
+                .font(.custom("SFProDisplay-Regular", size: 17))
+                .foregroundColor(Color(.darkGray))
             } else {
                 Text(price)
-                    .font(.system(.subheadline, design: .default, weight: .regular))
-                    .foregroundColor(.gray)
+                    .font(.custom("SFProDisplay-Regular", size: 17))
+                    .foregroundColor(Color(.darkGray))
             }
         }
     }

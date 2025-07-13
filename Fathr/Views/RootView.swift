@@ -45,30 +45,29 @@ struct RootView: View {
             }
         }
         .onChange(of: authManager.isSignedIn) { _, newValue in
-            print("RootView: isSignedIn changed to \(newValue), hasCompletedOnboarding: \(hasCompletedOnboarding)")
+            print("RootView: isSignedIn changed to \(newValue)")
             if newValue {
+                isLoading = true // Wait for onboarding status
                 showAuth = false
                 showSplash = false
                 showSignUpScreen = false
-                isLoading = true // Ensure loading state until Firestore fetch completes
                 loadOnboardingStatus()
             } else {
                 showAuth = true
-                showSplash = false
-                showSignUpScreen = false
                 isLoading = false
             }
         }
         .onAppear {
-            print("RootView: onAppear, isSignedIn: \(authManager.isSignedIn), hasCompletedOnboarding: \(hasCompletedOnboarding)")
-            if authManager.isSignedIn {
-                isLoading = true
-                loadOnboardingStatus()
-            } else {
-                isLoading = false
-                showSplash = true
-                showAuth = false
-                showSignUpScreen = false
+            print("RootView: onAppear, checking auth state")
+            // Delay to ensure Firebase auth state is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                print("RootView: Auth state check, isSignedIn: \(authManager.isSignedIn)")
+                if authManager.isSignedIn {
+                    loadOnboardingStatus()
+                } else {
+                    isLoading = false
+                    showSplash = true
+                }
             }
         }
     }

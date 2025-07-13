@@ -11,11 +11,14 @@ class AuthManager: ObservableObject {
     private var authListenerHandle: AuthStateDidChangeListenerHandle?
 
     init() {
-        checkAuthState()
-        authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
-            let isSignedIn = user != nil
-            print("AuthManager: Auth state changed, isSignedIn = \(isSignedIn), user = \(user?.uid ?? "none")")
-            self?.isSignedIn = isSignedIn
+        // Delay check to ensure Firebase restores session
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.checkAuthState()
+            self.authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+                let isSignedIn = user != nil
+                print("AuthManager: Auth state changed, isSignedIn = \(isSignedIn), user = \(user?.uid ?? "none")")
+                self?.isSignedIn = isSignedIn
+            }
         }
     }
 

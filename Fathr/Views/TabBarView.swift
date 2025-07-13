@@ -7,8 +7,8 @@ struct TabBarView: View {
     @State private var selectedTab: Int = 0
     @State private var showPaywall: Bool = false
 
-    // Set to true to bypass paywall during development
-    private let isPaywallDisabledForTesting = true
+    // Set to false to re-enable paywall
+    private let isPaywallDisabledForTesting = false
 
     var body: some View {
         GeometryReader { geometry in

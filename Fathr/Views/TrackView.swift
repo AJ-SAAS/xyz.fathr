@@ -25,7 +25,7 @@ struct TrackContentView: View {
     @Binding var showTestInput: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) { // Reduced spacing from 16 to 8
             if testStore.tests.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("No Test Results")
@@ -45,7 +45,7 @@ struct TrackContentView: View {
                 RecentResultsBreakdownView()
             }
         }
-        .padding(.vertical, 2) // Further reduced from 8 to 2 to minimize gap
+        .padding(.vertical, 0) // Changed from 2 to 0 to minimize gap
     }
 }
 
@@ -191,7 +191,8 @@ struct SummaryCardsView: View {
                         whoRange: "Normal appearance, liquefaction, pH 7.2–8.0, volume ≥1.4 mL.",
                         improvementTime: "Usually improves over 1–2 cycles (roughly 35–70 days).",
                         tips: ["Stay hydrated.", "Avoid smoking and alcohol.", "Maintain a healthy diet."]
-                    )
+                    ),
+                    isGood: latestTest.analysisStatus == "Typical"
                 )
                 SummaryCardView(
                     title: "Motility",
@@ -207,7 +208,8 @@ struct SummaryCardsView: View {
                         whoRange: "Total motility ≥40%, progressive motility ≥30%.",
                         improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
                         tips: ["Exercise regularly.", "Eat antioxidant-rich foods like berries.", "Avoid heat exposure (e.g., hot tubs)."]
-                    )
+                    ),
+                    isGood: (latestTest.totalMobility ?? 0) >= 40
                 )
                 SummaryCardView(
                     title: "Concentration",
@@ -223,7 +225,8 @@ struct SummaryCardsView: View {
                         whoRange: "≥16 M/mL (WHO 6th Edition).",
                         improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
                         tips: ["Take zinc and selenium supplements.", "Avoid stress.", "Sleep 7–8 hours nightly."]
-                    )
+                    ),
+                    isGood: (latestTest.spermConcentration ?? 0) >= 15
                 )
                 SummaryCardView(
                     title: "Morphology",
@@ -239,7 +242,8 @@ struct SummaryCardsView: View {
                         whoRange: "≥4% normal forms.",
                         improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
                         tips: ["Eat foods rich in folate (e.g., spinach).", "Avoid pesticides.", "Take CoQ10 supplements."]
-                    )
+                    ),
+                    isGood: (latestTest.morphologyRate ?? 0) >= 4
                 )
                 SummaryCardView(
                     title: "DNA Fragmentation",
@@ -255,7 +259,8 @@ struct SummaryCardsView: View {
                         whoRange: "<15% for low risk, <30% for moderate risk.",
                         improvementTime: "Usually improves over 2–3 cycles (roughly 70–90 days).",
                         tips: ["Reduce oxidative stress with antioxidants.", "Avoid smoking.", "Consult a specialist for high risk."]
-                    )
+                    ),
+                    isGood: (latestTest.dnaFragmentationRisk ?? 0) <= 15
                 )
             }
         }
@@ -275,34 +280,38 @@ struct SummaryCardsView: View {
         let summary: String
         @Binding var isExpanded: Bool
         let details: SummaryCardDetails
+        let isGood: Bool
 
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
                 Button(action: { isExpanded.toggle() }) {
-                    HStack {
+                    HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(title)
                                 .font(.headline)
                                 .fontDesign(.rounded)
                                 .foregroundColor(.black)
+                            Text(String(format: "%.1f", score))
+                                .font(.system(size: 36, weight: .bold))
+                                .foregroundColor(.black)
                             Text(summary)
                                 .font(.subheadline)
                                 .fontDesign(.rounded)
                                 .foregroundColor(.gray)
+                            Text(isGood ? "You are in the fertile zone" : "You are close to optimal")
+                                .font(.caption)
+                                .fontDesign(.rounded)
+                                .foregroundColor(isGood ? .green : .orange)
+                                .italic()
+                                .padding(.top, 2)
                         }
                         Spacer()
-                        Text(String(format: "%.1f", score))
-                            .font(.subheadline.bold())
-                            .foregroundColor(scoreColor(score: score))
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(scoreColor(score: score).opacity(0.2))
-                            .cornerRadius(6)
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .foregroundColor(.gray)
+                            .font(.system(size: 14))
                     }
                 }
-                .accessibilityLabel("\(title): \(summary), Score: \(String(format: "%.1f", score)), Tap to \(isExpanded ? "collapse" : "expand") details")
+                .accessibilityLabel("\(title): Score \(String(format: "%.1f", score)), \(summary), \(isGood ? "In the fertile zone" : "Close to optimal"), Tap to \(isExpanded ? "collapse" : "expand") details")
 
                 if isExpanded {
                     VStack(alignment: .leading, spacing: 8) {
@@ -688,7 +697,7 @@ struct TrackView_Previews: PreviewProvider {
                 headDefect: 3.0,
                 neckDefect: 2.0,
                 tailDefect: 1.0,
-                date: Calendar.current.date(byAdding: .day, value: -30, to: Date())!, // 30 days ago
+                date: Calendar.current.date(byAdding: .day, value: -30, to: Date())!,
                 dnaFragmentationRisk: 10,
                 dnaRiskCategory: "Low"
             )

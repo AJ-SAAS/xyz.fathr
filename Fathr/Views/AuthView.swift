@@ -203,4 +203,3 @@ struct AuthView: View {
         .environmentObject(AuthManager())
         .environmentObject(PurchaseModel())
 }
-

@@ -66,7 +66,7 @@ struct DashboardView: View {
                                 isWinning: true
                             )
                             MetricCardView(
-                                title: "Where You Can Improve",
+                                title: "Your Next Steps",
                                 metrics: improvementMetrics,
                                 isWinning: false
                             )
@@ -126,31 +126,121 @@ struct DashboardView: View {
         var winningMetrics: [String] = []
         var improvementMetrics: [String] = []
 
+        // Define thresholds based on WHO standards
+        let motilityThreshold = 40.0
+        let concentrationThreshold = 15.0
+        let morphologyThreshold = 4.0
+        let dnaFragmentationThreshold = 15.0 // Example threshold for DNA fragmentation risk
+        let semenQuantityThreshold = 1.4
+        let pHMinThreshold = 7.2
+        let pHMaxThreshold = 8.0
+
+        // Helper function to check historical decline for Double? properties
+        func hasDeclinedDouble(metric: Double, historicalKeyPath: KeyPath<TestData, Double?>, threshold: Double) -> Bool {
+            guard testStore.tests.count > 1 else { return false }
+            let previousTests = testStore.tests.dropFirst()
+            let avgHistorical = previousTests.reduce(0.0) { sum, test in
+                sum + (test[keyPath: historicalKeyPath] ?? 0.0)
+            } / Double(previousTests.count)
+            return metric < avgHistorical && metric >= threshold
+        }
+
+        // Helper function to check historical decline for Int? properties
+        func hasDeclinedInt(metric: Int, historicalKeyPath: KeyPath<TestData, Int?>, threshold: Double) -> Bool {
+            guard testStore.tests.count > 1 else { return false }
+            let previousTests = testStore.tests.dropFirst()
+            let avgHistorical = previousTests.reduce(0.0) { sum, test in
+                sum + Double(test[keyPath: historicalKeyPath] ?? 0)
+            } / Double(previousTests.count)
+            return Double(metric) < avgHistorical && Double(metric) >= threshold
+        }
+
+        // Motility
         let motility = test.totalMobility ?? 0.0
-        if motility >= 40 {
+        if motility >= motilityThreshold {
             winningMetrics.append("Motility: \(Int(motility))% (Great movement!)")
+            if hasDeclinedDouble(metric: motility, historicalKeyPath: \.totalMobility, threshold: motilityThreshold) {
+                improvementMetrics.append("Motility: \(Int(motility))% is strong, but down from your average. Try regular exercise to maintain it.")
+            } else if motility < 50.0 { // Aspirational threshold
+                improvementMetrics.append("Motility: \(Int(motility))% is good. Aim for ≥ 50% with a diet rich in antioxidants.")
+            }
         } else {
-            improvementMetrics.append("Motility: \(Int(motility))% (Aim for ≥ 40%)")
+            improvementMetrics.append("Motility: \(Int(motility))% (Aim for ≥ 40% with zinc-rich foods like pumpkin seeds)")
         }
 
+        // Concentration
         let concentration = test.spermConcentration ?? 0.0
-        if concentration >= 15 {
+        if concentration >= concentrationThreshold {
             winningMetrics.append("Concentration: \(Int(concentration)) million/mL (Strong count!)")
+            if hasDeclinedDouble(metric: concentration, historicalKeyPath: \.spermConcentration, threshold: concentrationThreshold) {
+                improvementMetrics.append("Concentration: \(Int(concentration)) million/mL is good, but lower than your average. Avoid heat exposure.")
+            } else if concentration < 20.0 { // Aspirational threshold
+                improvementMetrics.append("Concentration: \(Int(concentration)) million/mL is solid. Boost to ≥ 20 million/mL with Brazil nuts for selenium.")
+            }
         } else {
-            improvementMetrics.append("Concentration: \(Int(concentration)) million/mL (Aim for ≥ 15 million/mL)")
+            improvementMetrics.append("Concentration: \(Int(concentration)) million/mL (Aim for ≥ 15 million/mL with a balanced diet)")
         }
 
+        // Morphology
         let morphology = test.morphologyRate ?? 0.0
-        if morphology >= 4 {
+        if morphology >= morphologyThreshold {
             winningMetrics.append("Morphology: \(Int(morphology))% normal forms (Solid structure!)")
+            if hasDeclinedDouble(metric: morphology, historicalKeyPath: \.morphologyRate, threshold: morphologyThreshold) {
+                improvementMetrics.append("Morphology: \(Int(morphology))% is good, but below your average. Reduce stress to maintain it.")
+            } else if morphology < 6.0 { // Aspirational threshold
+                improvementMetrics.append("Morphology: \(Int(morphology))% is strong. Aim for ≥ 6% with Omega-3 supplements.")
+            }
         } else {
-            improvementMetrics.append("Morphology: \(Int(morphology))% normal forms (Aim for ≥ 4%)")
+            improvementMetrics.append("Morphology: \(Int(morphology))% normal forms (Aim for ≥ 4% with CoQ10 supplements)")
         }
 
+        // Sperm Analysis Status
         if test.analysisStatus == "Typical" {
             winningMetrics.append("Sperm Analysis: Typical (Excellent overall health!)")
         } else {
-            improvementMetrics.append("Sperm Analysis: \(test.analysisStatus) (Consult a specialist)")
+            improvementMetrics.append("Sperm Analysis: \(test.analysisStatus) (Consult a specialist for personalized advice)")
+        }
+
+        // Additional Metric: DNA Fragmentation Risk
+        let dnaFragmentation = test.dnaFragmentationRisk ?? 0
+        if Double(dnaFragmentation) <= dnaFragmentationThreshold {
+            winningMetrics.append("DNA Fragmentation: Low risk (Healthy sperm DNA!)")
+            if hasDeclinedInt(metric: dnaFragmentation, historicalKeyPath: \.dnaFragmentationRisk, threshold: dnaFragmentationThreshold) {
+                improvementMetrics.append("DNA Fragmentation: Low but slightly up from your average. Avoid oxidative stress with berries.")
+            } else if Double(dnaFragmentation) > 10.0 { // Aspirational threshold
+                improvementMetrics.append("DNA Fragmentation: Low risk. Keep it below 10% with antioxidant-rich foods.")
+            }
+        } else {
+            improvementMetrics.append("DNA Fragmentation: \(Int(dnaFragmentation))% (Aim for ≤ 15% by avoiding smoking and stress)")
+        }
+
+        // Additional Metric: Semen Quantity
+        let semenQuantity = test.semenQuantity ?? 0.0
+        if semenQuantity >= semenQuantityThreshold {
+            winningMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL (Good volume!)")
+            if hasDeclinedDouble(metric: semenQuantity, historicalKeyPath: \.semenQuantity, threshold: semenQuantityThreshold) {
+                improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL is good, but below your average. Stay hydrated.")
+            } else if semenQuantity < 2.0 { // Aspirational threshold
+                improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL is sufficient. Aim for ≥ 2.0 mL with adequate hydration.")
+            }
+        } else {
+            improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL (Aim for ≥ 1.4 mL with adequate hydration)")
+        }
+
+        // Additional Metric: pH
+        let pH = test.pH ?? 0.0
+        if pH >= pHMinThreshold && pH <= pHMaxThreshold {
+            winningMetrics.append("pH: \(String(format: "%.1f", pH)) (Optimal range!)")
+            if hasDeclinedDouble(metric: pH, historicalKeyPath: \.pH, threshold: pHMinThreshold) {
+                improvementMetrics.append("pH: \(String(format: "%.1f", pH)) is optimal but shifted from your average. Maintain balance with a healthy diet.")
+            }
+        } else {
+            improvementMetrics.append("pH: \(String(format: "%.1f", pH)) (Aim for 7.2–8.0 with a balanced diet)")
+        }
+
+        // Fallback: If no improvement metrics, provide general maintenance tips
+        if improvementMetrics.isEmpty {
+            improvementMetrics.append("All metrics are excellent! Maintain with daily hydration and a nutrient-rich diet.")
         }
 
         return (winningMetrics, improvementMetrics)
@@ -867,4 +957,3 @@ struct DashboardView_Previews: PreviewProvider {
             .environmentObject(PurchaseModel())
     }
 }
-

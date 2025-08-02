@@ -32,7 +32,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // Logo at top center
-                    Image("Fathr_logo_dash")
+                    Image("Fathr-logo-dash")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 120)

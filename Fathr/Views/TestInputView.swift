@@ -123,8 +123,10 @@ struct TestInputView: View {
                                 Picker("Appearance", selection: $appearance) {
                                     ForEach(Appearance.allCases, id: \.self) {
                                         Text($0.rawValue.capitalized).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasAppearance)
                                 .accessibilityLabel("Appearance")
                                 .accessibilityValue(appearance.rawValue.capitalized)
@@ -137,8 +139,10 @@ struct TestInputView: View {
                                 Picker("Liquefaction", selection: $liquefaction) {
                                     ForEach(Liquefaction.allCases, id: \.self) {
                                         Text($0.rawValue.capitalized).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasLiquefaction)
                                 .accessibilityLabel("Liquefaction")
                                 .accessibilityValue(liquefaction.rawValue.capitalized)
@@ -151,8 +155,10 @@ struct TestInputView: View {
                                 Picker("Consistency", selection: $consistency) {
                                     ForEach(Consistency.allCases, id: \.self) {
                                         Text($0.rawValue.capitalized).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasConsistency)
                                 .accessibilityLabel("Consistency")
                                 .accessibilityValue(consistency.rawValue.capitalized)
@@ -165,8 +171,10 @@ struct TestInputView: View {
                                 Picker("Semen Quantity (mL)", selection: $semenQuantity) {
                                     ForEach(Array(stride(from: 0.0, through: 10.0, by: 0.1)), id: \.self) {
                                         Text(String(format: "%.1f", $0)).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasSemenQuantity)
                                 .accessibilityLabel("Semen Quantity")
                                 .accessibilityValue(String(format: "%.1f mL", semenQuantity))
@@ -179,8 +187,10 @@ struct TestInputView: View {
                                 Picker("pH", selection: $pH) {
                                     ForEach(Array(stride(from: 0.0, through: 14.0, by: 0.1)), id: \.self) {
                                         Text(String(format: "%.1f", $0)).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasPH)
                                 .accessibilityLabel("pH")
                                 .accessibilityValue(String(format: "%.1f", pH))
@@ -199,9 +209,14 @@ struct TestInputView: View {
                         Section(header: Text("Motility").font(.headline).fontDesign(.rounded)) {
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Total Mobility: \(Int(totalMobility))%")
+                                    HStack(spacing: 0) {
+                                        Text("Total Mobility: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(totalMobility))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $totalMobility, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Total Mobility")
                                         .accessibilityValue("\(Int(totalMobility)) percent")
                                 }
@@ -213,9 +228,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Progressive Mobility: \(Int(progressiveMobility))%")
+                                    HStack(spacing: 0) {
+                                        Text("Progressive Mobility: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(progressiveMobility))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $progressiveMobility, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Progressive Mobility")
                                         .accessibilityValue("\(Int(progressiveMobility)) percent")
                                 }
@@ -227,9 +247,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Non-Progressive Mobility: \(Int(nonProgressiveMobility))%")
+                                    HStack(spacing: 0) {
+                                        Text("Non-Progressive Mobility: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(nonProgressiveMobility))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $nonProgressiveMobility, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Non-Progressive Mobility")
                                         .accessibilityValue("\(Int(nonProgressiveMobility)) percent")
                                 }
@@ -243,8 +268,10 @@ struct TestInputView: View {
                                 Picker("Travel Speed (mm/sec)", selection: $travelSpeed) {
                                     ForEach(Array(stride(from: 0.0, through: 1.0, by: 0.01)), id: \.self) {
                                         Text(String(format: "%.2f", $0)).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasTravelSpeed)
                                 .accessibilityLabel("Travel Speed")
                                 .accessibilityValue(String(format: "%.2f mm per second", travelSpeed))
@@ -255,9 +282,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Mobility Index: \(Int(mobilityIndex))%")
+                                    HStack(spacing: 0) {
+                                        Text("Mobility Index: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(mobilityIndex))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $mobilityIndex, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Mobility Index")
                                         .accessibilityValue("\(Int(mobilityIndex)) percent")
                                 }
@@ -269,9 +301,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Still: \(Int(still))%")
+                                    HStack(spacing: 0) {
+                                        Text("Still: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(still))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $still, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Still")
                                         .accessibilityValue("\(Int(still)) percent")
                                 }
@@ -285,8 +322,10 @@ struct TestInputView: View {
                                 Picker("Agglutination", selection: $agglutination) {
                                     ForEach(Agglutination.allCases, id: \.self) {
                                         Text($0.rawValue.capitalized).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasAgglutination)
                                 .accessibilityLabel("Agglutination")
                                 .accessibilityValue(agglutination.rawValue.capitalized)
@@ -307,8 +346,10 @@ struct TestInputView: View {
                                 Picker("Sperm Concentration (M/mL)", selection: $spermConcentration) {
                                     ForEach(0...100, id: \.self) {
                                         Text("\($0)").tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasSpermConcentration)
                                 .accessibilityLabel("Sperm Concentration")
                                 .accessibilityValue("\(spermConcentration) million per mL")
@@ -321,8 +362,10 @@ struct TestInputView: View {
                                 Picker("Total Spermatozoa (M/mL)", selection: $totalSpermatozoa) {
                                     ForEach(0...200, id: \.self) {
                                         Text("\($0)").tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasTotalSpermatozoa)
                                 .accessibilityLabel("Total Spermatozoa")
                                 .accessibilityValue("\(totalSpermatozoa) million per mL")
@@ -335,8 +378,10 @@ struct TestInputView: View {
                                 Picker("Functional Spermatozoa (M/mL)", selection: $functionalSpermatozoa) {
                                     ForEach(0...100, id: \.self) {
                                         Text("\($0)").tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasFunctionalSpermatozoa)
                                 .accessibilityLabel("Functional Spermatozoa")
                                 .accessibilityValue("\(functionalSpermatozoa) million per mL")
@@ -349,8 +394,10 @@ struct TestInputView: View {
                                 Picker("Round Cells (M/mL)", selection: $roundCells) {
                                     ForEach(Array(stride(from: 0.0, through: 10.0, by: 0.1)), id: \.self) {
                                         Text(String(format: "%.1f", $0)).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasRoundCells)
                                 .accessibilityLabel("Round Cells")
                                 .accessibilityValue(String(format: "%.1f million per mL", roundCells))
@@ -363,8 +410,10 @@ struct TestInputView: View {
                                 Picker("Leukocytes (M/mL)", selection: $leukocytes) {
                                     ForEach(Array(stride(from: 0.0, through: 5.0, by: 0.1)), id: \.self) {
                                         Text(String(format: "%.1f", $0)).tag($0)
+                                            .foregroundColor(.blue) // Match button tint
                                     }
                                 }
+                                .tint(.blue) // Ensure selected option is blue
                                 .disabled(!hasLeukocytes)
                                 .accessibilityLabel("Leukocytes")
                                 .accessibilityValue(String(format: "%.1f million per mL", leukocytes))
@@ -375,9 +424,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Live Spermatozoa: \(Int(liveSpermatozoa))%")
+                                    HStack(spacing: 0) {
+                                        Text("Live Spermatozoa: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(liveSpermatozoa))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $liveSpermatozoa, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Live Spermatozoa")
                                         .accessibilityValue("\(Int(liveSpermatozoa)) percent")
                                 }
@@ -397,9 +451,14 @@ struct TestInputView: View {
                         Section(header: Text("Morphology").font(.headline).fontDesign(.rounded)) {
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Morphology Rate: \(Int(morphologyRate))%")
+                                    HStack(spacing: 0) {
+                                        Text("Morphology Rate: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(morphologyRate))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $morphologyRate, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Morphology Rate")
                                         .accessibilityValue("\(Int(morphologyRate)) percent")
                                 }
@@ -411,9 +470,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Pathology: \(Int(pathology))%")
+                                    HStack(spacing: 0) {
+                                        Text("Pathology: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(pathology))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $pathology, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Pathology")
                                         .accessibilityValue("\(Int(pathology)) percent")
                                 }
@@ -425,9 +489,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Head Defect: \(Int(headDefect))%")
+                                    HStack(spacing: 0) {
+                                        Text("Head Defect: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(headDefect))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $headDefect, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Head Defect")
                                         .accessibilityValue("\(Int(headDefect)) percent")
                                 }
@@ -439,9 +508,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Neck Defect: \(Int(neckDefect))%")
+                                    HStack(spacing: 0) {
+                                        Text("Neck Defect: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(neckDefect))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $neckDefect, in: 0...100, step: 1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Neck Defect")
                                         .accessibilityValue("\(Int(neckDefect)) percent")
                                 }
@@ -453,9 +527,14 @@ struct TestInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 VStack {
-                                    Text("Tail Defect: \(Int(tailDefect))%")
+                                    HStack(spacing: 0) {
+                                        Text("Tail Defect: ")
+                                            .foregroundColor(.black) // Descriptive text in black
+                                        Text("\(Int(tailDefect))%")
+                                            .foregroundColor(.blue) // Percentage in blue
+                                    }
                                     Slider(value: $tailDefect, in: 0...100, step: 0.1)
-                                        .tint(.black)
+                                        .tint(.blue) // Slider bar remains blue
                                         .accessibilityLabel("Tail Defect")
                                         .accessibilityValue("\(Int(tailDefect)) percent")
                                 }

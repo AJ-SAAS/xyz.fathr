@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "appstore.png",
+      "filename" : "fathrpro.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "appstore 1.png",
+      "filename" : "fathrpro 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "appstore 2.png",
+      "filename" : "fathrpro 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

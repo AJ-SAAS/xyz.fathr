@@ -8,59 +8,59 @@ struct PurchaseView: View {
     @State private var selectedPackage: Package?
     @State private var freeTrialEnabled: Bool = true
     @State private var errorMessage: String?
+    @State private var showCloseButton: Bool = false // State for close button visibility
 
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Header with close button
+                // Header with close button or loading circle
                 HStack {
-                    Spacer()
-                    Button(action: {
-                        isPresented = false
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(.title3, design: .default, weight: .bold))
-                            .foregroundColor(.gray)
+                    if showCloseButton {
+                        Button(action: {
+                            isPresented = false
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(.title3, design: .default, weight: .bold))
+                                .foregroundColor(.gray)
+                                .padding(geometry.size.width > 600 ? 16 : 12)
+                        }
+                        .accessibilityLabel("Close")
+                    } else {
+                        ProgressView()
+                            .scaleEffect(1.0) // Match size to title3 font
                             .padding(geometry.size.width > 600 ? 16 : 12)
+                            .accessibilityLabel("Loading, please wait")
                     }
-                    .accessibilityLabel("Close")
+                    Spacer()
                 }
                 
-                // Fathr logo
-                Image("Fathr_logo_white")
+                // FathrPro logo with rounded corners
+                Image("fathrpro")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: min(geometry.size.width * 0.225, 150))
-                    .padding(.vertical, 8)
-                    .accessibilityLabel("Fathr Logo")
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .frame(width: min(geometry.size.width * 0.3, 200))
+                    .padding(.vertical, 20)
+                    .accessibilityLabel("FathrPro Logo")
                 
                 // Headline
-                Text("Unlimited Access")
-                    .font(.custom("SFProDisplay-Bold", size: 25))
-                    .font(.system(size: 25, weight: .bold)) // Fallback to ensure boldness
-                    // Optional: Use .font(.custom("SFProDisplay-Black", size: 25)) for heavier weight
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                    .padding(.bottom, 4)
-                    .accessibilityLabel("Unlimited Access")
-                
-                // Subtext
-                Text("Get full access Know more. Track better. Grow your family.")
-                    .font(.system(.subheadline, design: .default, weight: .regular))
-                    .foregroundColor(.gray)
+                Text("Premium Access")
+                    .font(.custom("SFProDisplay-Black", size: 32))
+                    .bold() // Extra emphasis for boldness
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                     .padding(.bottom, 12)
+                    .accessibilityLabel("Premium Access")
                 
                 // Features list
-                VStack(alignment: .leading, spacing: 14) {
-                    FeatureRow(text: "Track unlimited sperm test results")
-                    FeatureRow(text: "Get easy tips to boost fertility")
-                    FeatureRow(text: "See patterns in your sperm health")
+                VStack(alignment: .leading, spacing: 20) {
+                    FeatureRow(text: "Add Unlimited Tests")
+                    FeatureRow(text: "Get personalized suggestions")
                     FeatureRow(text: "Reach your family goals faster")
+                    FeatureRow(text: "Remove annoying paywalls")
                 }
                 .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                .padding(.bottom, 12)
+                .padding(.bottom, 24)
                 
                 // Payment options or error state
                 if let error = errorMessage ?? purchaseModel.errorMessage {
@@ -90,9 +90,9 @@ struct PurchaseView: View {
                         // Yearly Plan
                         PackageButton(
                             title: "Yearly Plan",
-                            price: offering.package(identifier: "yearly_pro")?.storeProduct.localizedPriceString ?? "$59.99 per year",
-                            crossedOutPrice: "$311.48",
-                            badgeText: "SAVE 80%",
+                            price: offering.package(identifier: "yearly_pro")?.storeProduct.localizedPriceString ?? "$29.99 per year",
+                            crossedOutPrice: "$149.99",
+                            badgeText: "BEST VALUE",
                             isSelected: selectedPackage?.identifier == "yearly_pro",
                             isWeeklyPlan: false,
                             action: {
@@ -107,7 +107,7 @@ struct PurchaseView: View {
                         PackageButton(
                             title: "3-Day Trial",
                             price: "then \(offering.package(identifier: "weekly_pro_trial")?.storeProduct.localizedPriceString ?? "$5.99") per week",
-                            badgeText: "TRY FREE",
+                            badgeText: "SHORT TERM",
                             isSelected: selectedPackage?.identifier == "weekly_pro_trial",
                             isWeeklyPlan: true,
                             action: {
@@ -162,7 +162,7 @@ struct PurchaseView: View {
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
                     .padding(.top, 8)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 16)
                     
                     // Purchase button
                     Button(action: {
@@ -176,7 +176,7 @@ struct PurchaseView: View {
                         }
                     }) {
                         HStack {
-                            Text(isPurchasing ? "Processing..." : "Unlock Fathr Now")
+                            Text(isPurchasing ? "Processing..." : "Try 3 days free")
                             if !isPurchasing {
                                 Image(systemName: "chevron.right")
                             }
@@ -190,7 +190,7 @@ struct PurchaseView: View {
                     }
                     .disabled(selectedPackage == nil || isPurchasing)
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
-                    .accessibilityLabel(isPurchasing ? "Processing purchase" : "Unlock Fathr Now")
+                    .accessibilityLabel(isPurchasing ? "Processing purchase" : "Try 3 days free")
                     
                     if isPurchasing {
                         ProgressView()
@@ -240,6 +240,12 @@ struct PurchaseView: View {
                         selectedPackage = freeTrialEnabled ? offering.package(identifier: "weekly_pro_trial") : offering.package(identifier: "yearly_pro")
                     }
                 }
+                // Start 5-second timer for close button
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    withAnimation {
+                        showCloseButton = true
+                    }
+                }
             }
             .onChange(of: purchaseModel.isSubscribed) { _, newValue in
                 if newValue {
@@ -264,10 +270,10 @@ struct FeatureRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
-                .font(.custom("SFProDisplay-Regular", size: 19))
+                .font(.custom("SFProDisplay-Regular", size: 16))
                 .foregroundColor(.blue)
             Text(text)
-                .font(.custom("SFProDisplay-Regular", size: 19))
+                .font(.custom("SFProDisplay-Regular", size: 16))
                 .foregroundColor(.black)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -287,8 +293,7 @@ struct PackageButton: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.custom("SFProDisplay-Bold", size: 16))
-                .font(.system(size: 16, weight: .bold)) // Fallback to ensure boldness
-                // Optional: Use .font(.custom("SFProDisplay-Black", size: 16)) for heavier weight
+                .font(.system(size: 16, weight: .bold))
             if let crossedOutPrice = crossedOutPrice {
                 HStack(spacing: 4) {
                     Text(crossedOutPrice)
@@ -308,14 +313,14 @@ struct PackageButton: View {
     }
 
     private var badgeAndSelectionView: some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        HStack(alignment: .center, spacing: 8) {
             if let badge = badgeText {
                 Text(badge)
-                    .font(.system(.caption2, design: .default, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(isWeeklyPlan ? .system(size: 13, weight: .bold) : .system(.caption2, design: .default, weight: .bold)) // 13pt for SHORT TERM, caption2 for BEST VALUE
+                    .foregroundColor(isWeeklyPlan ? .black : .white) // Black for SHORT TERM, white for BEST VALUE
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(isWeeklyPlan ? Color.green : Color.red)
+                    .background(isWeeklyPlan ? Color.clear : Color.red) // Clear for SHORT TERM, red for BEST VALUE
                     .cornerRadius(4)
             }
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
@@ -327,7 +332,7 @@ struct PackageButton: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .top) {
+                HStack(alignment: .center) {
                     pricingView
                     Spacer()
                     badgeAndSelectionView

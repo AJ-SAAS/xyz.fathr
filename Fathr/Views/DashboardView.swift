@@ -78,6 +78,9 @@ struct DashboardView: View {
                                 checkedTips[index] = !(checkedTips[index] ?? false)
                             }
                         )
+                        
+                        // Articles section
+                        ArticlesView()
                     }
                     
                     DisclaimerView()

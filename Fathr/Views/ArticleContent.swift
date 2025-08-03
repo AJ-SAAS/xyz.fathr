@@ -1,3 +1,4 @@
+// ArticleContent.swift
 import Foundation
 
 struct Article: Identifiable {
@@ -15,37 +16,43 @@ struct ArticleContent {
             description: "Simple lifestyle tweaks you can start today to boost sperm quality, naturally.",
             imageName: "articleimage1",
             content: """
-            You don’t need to turn your life upside down to improve your fertility.
+            Improving your fertility doesn’t require drastic changes. *Small, consistent habits* can significantly boost your sperm count, quality, and motility, helping you conceive naturally.
 
-            Most men are surprised to learn that better sperm health starts with small, everyday habits. When practiced consistently, they can boost your count, quality, and motility — and give you the confidence to conceive naturally.
-
-            Here’s what that looks like:
+            Here’s how to get started:
 
             Stay Hydrated
-            Water plays a bigger role than you think. Dehydration doesn’t just affect your energy levels — it also lowers semen volume. That means fewer sperm are carried during ejaculation. Aim for 2 to 3 liters per day (more if you’re active). Carrying a water bottle makes it easier to keep sipping without thinking about it.
+            Water is critical for sperm health. Dehydration reduces semen volume, meaning fewer sperm reach their destination. 
+            
+            *Aim for 2–3 liters daily* (more if you’re active). Keep a water bottle handy to make hydration effortless.
 
             Move Your Body, But Don’t Overdo It
-            Regular movement supports healthy blood flow to the reproductive organs, which helps with testosterone production and sperm creation. You don’t have to hit the gym hard — even 30 minutes of walking, bodyweight exercises, or cycling is enough. Just avoid excessive, high-intensity workouts or long endurance training (like running marathons weekly), which can increase stress hormones like cortisol and decrease testosterone.
+            Regular exercise improves blood flow to reproductive organs, supporting testosterone and sperm production. A brisk 30-minute walk, bodyweight exercises, or cycling works wonders.
+            
+            *Avoid overtraining*, like intense marathons, which can raise cortisol and lower testosterone.
 
             Eat for Fertility, Not Just Fuel
-            Your sperm need nutrients just like the rest of your body. What you eat directly affects how well they form and function. Try adding more of these to your plate:
-            - Leafy greens like spinach (rich in folate)
-            - Nuts and seeds (zinc, selenium, omega-3s)
-            - Berries (antioxidants that fight sperm DNA damage)
-            - Eggs (a good source of protein and choline)
+            Your sperm thrive on nutrients. A diet rich in key foods can enhance their performance:
+            - Leafy greens like spinach (*packed with folate*)
+            - Nuts and seeds (*zinc and omega-3s*)
+            - Berries (*antioxidants to protect sperm DNA*)
+            - Eggs (*protein and choline*)
 
-            Fertility isn’t about cutting everything out — it’s about putting more of the right things in.
+            *Focus on adding nutrients*, not just cutting out junk.
 
             Prioritize Deep, Consistent Sleep
-            Sleep is when your body rebuilds. Testosterone — the hormone that drives sperm production — is made mostly at night. Less than 6 hours of sleep? Your levels can drop. Aim for 7–8 hours of uninterrupted sleep. Try a simple night routine: no screens 30 minutes before bed, keep the room cool and dark, and go to bed at the same time each night.
+            Testosterone, vital for sperm production, peaks during sleep. Skimping on rest—less than 6 hours—can lower your levels.
+            
+            *Aim for 7–8 hours* with a routine: no screens 30 minutes before bed, a cool, dark room, and consistent sleep times.
 
             Take Stress Seriously
-            Stress affects everything — from your mood to your hormones. When you’re under pressure for too long, your body produces more cortisol, which lowers testosterone. You don’t need to meditate for an hour. Just 5 to 10 minutes a day of breathing exercises, walking outside, or journaling can shift your nervous system back into balance.
+            Chronic stress spikes cortisol, which suppresses testosterone. Just 5–10 minutes of deep breathing, a walk, or journaling can reset your system.
+            
+            *Small stress-relief habits* make a big difference over time.
 
-            Bottom line?
-            You already have the tools. These habits don’t require a gym membership, a new diet, or a prescription. They’re simple, repeatable, and proven to make a difference.
+            Bottom Line
+            These habits are simple, accessible, and proven. *Start with one today*, and your future family will thank you.
 
-            Start with one. Then build from there. Your future family will thank you.
+            *This article is for informational purposes only and is not medical advice. Consult a doctor for personalized guidance.*
             """
         ),
         Article(
@@ -53,32 +60,33 @@ struct ArticleContent {
             description: "Eat your way to stronger swimmers.",
             imageName: "articleimage2",
             content: """
-            Most guys don’t know this, but what you eat today affects your sperm 2–3 months from now. That’s how long it takes your body to make a new batch. What you put in your body during that time can make your sperm stronger—or weaker.
+            Your diet today shapes your sperm 2–3 months from now—the time it takes to produce a new batch. *What you eat matters* for stronger, healthier sperm.
 
-            Here are five important changes you can make to your diet to help boost your fertility:
+            Here are five dietary changes to boost your fertility:
 
-            🧠 Zinc for Sperm Count & Movement
-            Zinc helps your body make testosterone and healthy sperm.
-            Eat more: Oysters, pumpkin seeds, chickpeas, beef, cashews.
+            Zinc for Sperm Count & Movement
+            Zinc fuels testosterone and sperm production. 
+            *Add these to your plate*: oysters, pumpkin seeds, chickpeas, beef, cashews.
 
-            🐟 Omega-3 Fats for Sperm Movement
-            These fats make sperm more flexible so they can swim better.
-            Eat more: Salmon, sardines, walnuts, flaxseeds—or take a fish oil supplement.
+            Omega-3 Fats for Sperm Movement
+            Omega-3s make sperm more flexible, improving their swimming ability. 
+            *Try these*: salmon, sardines, walnuts, flaxseeds, or a fish oil supplement.
 
-            🌿 Folate & B Vitamins for Healthy DNA
-            These protect the DNA inside your sperm.
-            Eat more: Spinach, lentils, avocados, eggs, asparagus.
+            Folate & B Vitamins for Healthy DNA
+            These nutrients protect sperm DNA from damage. 
+            *Eat more*: spinach, lentils, avocados, eggs, asparagus.
 
-            🍊 Antioxidants to Protect Sperm
-            They stop damage from toxins in your body.
-            Eat more: Berries, oranges, almonds, Brazil nuts, olive oil.
+            Antioxidants to Protect Sperm
+            Antioxidants shield sperm from toxins and oxidative stress. 
+            *Stock up on*: berries, oranges, almonds, Brazil nuts, olive oil.
 
-            🚫 Skip Processed Foods
-            Junk food lowers sperm count and movement.
-            Avoid: Soda, chips, fried food.
-            Eat instead: Whole foods, good fats, lean protein.
+            Skip Processed Foods
+            Junk food harms sperm count and motility. 
+            *Swap soda, chips, and fried foods* for whole foods, good fats, and lean proteins.
 
-            Even small changes in your diet can help. What you eat today could help you become a dad tomorrow.
+            *Small changes now* can lead to big results in a few months. Start eating for fertility today.
+
+            *This article is for informational purposes only and is not medical advice. Consult a doctor for personalized guidance.*
             """
         ),
         Article(
@@ -86,26 +94,33 @@ struct ArticleContent {
             description: "Understand your semen analysis so you know where you stand.",
             imageName: "articleimage3",
             content: """
-            Getting a semen test can be stressful. Then you get the results—and it’s just a bunch of numbers. But those numbers tell you something important: how strong your fertility is right now, and where there’s room to improve.
+            A semen analysis can feel overwhelming, but those numbers tell a clear story about your fertility. *Understanding them* empowers you to take action.
 
-            Here’s what those numbers usually mean:
+            Here’s what the key metrics mean:
 
             Sperm Count
-            This is how many sperm are in one milliliter of semen. A healthy number is at least 15 million per mL, but 20–40 million is better.
+            This measures sperm per milliliter of semen. 
+            *Healthy range*: at least 15 million per mL, ideally 20–40 million.
 
             Motility (Movement)
-            This tells you how many sperm are actually swimming. At least 40% should be moving, and 32% should be swimming forward. Sperm need to move to reach the egg.
+            This shows how many sperm are swimming effectively. 
+            *Target*: at least 40% moving, with 32% swimming forward to reach the egg.
 
             Morphology (Shape)
-            This shows what percent of sperm have the right shape. A good number is 4% or more. Strange-looking sperm don’t work as well.
+            This indicates the percentage of sperm with normal shape. 
+            *Goal*: 4% or more, as misshapen sperm are less effective.
 
             Semen Volume
-            This is how much you ejaculate. Normal is around 1.4 mL or more. Less volume means fewer sperm.
+            This is the amount of ejaculate. 
+            *Normal*: 1.4 mL or more. Lower volume means fewer sperm.
 
             DNA Fragmentation
-            This checks the quality of sperm DNA. You want this number low—ideally under 15%. High levels can make it harder to get pregnant.
+            This checks sperm DNA quality. 
+            *Ideal*: below 15%. Higher levels can reduce conception chances.
 
-            These numbers are not the final word. Many guys with low numbers still become dads. What matters is using the info to make changes and keep improving.
+            *Your results aren’t the final word*. Many men with lower numbers still conceive. Use this data to guide improvements.
+
+            *This article is for informational purposes only and is not medical advice. Consult a doctor for personalized guidance.*
             """
         ),
         Article(
@@ -113,30 +128,41 @@ struct ArticleContent {
             description: "Everyday habits could be hurting your fertility — here’s how to fix them.",
             imageName: "articleimage4",
             content: """
-            You might not notice it, but some everyday things can hurt your sperm without you even realizing it. The good news? You can change most of them.
+            Some daily habits silently harm your sperm. *The good news?* Most are easy to change.
+
+            Here are seven habits to avoid:
 
             1. Heat
-            Your testicles need to stay cool. Hot tubs, saunas, or even laptops on your lap raise the heat and hurt sperm. Keep devices off your lap and avoid long hot baths.
+            Testicles need to stay cool for optimal sperm production. 
+            *Avoid*: hot tubs, saunas, or laptops on your lap. Use a desk or table instead.
 
             2. Smoking & Vaping
-            Tobacco and vape chemicals lower sperm count and damage sperm DNA. Quitting is one of the best ways to boost fertility.
+            Tobacco and vape chemicals damage sperm DNA and reduce count. 
+            *Quitting* is one of the best steps for fertility.
 
             3. Too Much Alcohol
-            Heavy drinking lowers testosterone and sperm quality. Stick to 1–2 drinks per week, or take a break from alcohol.
+            Heavy drinking lowers testosterone and sperm quality. 
+            *Limit to*: 1–2 drinks per week or take a break entirely.
 
             4. Tight Underwear
-            Tight briefs trap heat. Go for loose boxers instead.
+            Tight briefs trap heat, harming sperm. 
+            *Switch to*: loose boxers for better airflow.
 
             5. Junk Food
-            Fast food and sugary snacks lower sperm count and motility. Eat more whole foods and healthy fats.
+            Fast food and sugary snacks reduce sperm count and motility. 
+            *Choose*: whole foods and healthy fats instead.
 
             6. Chemicals
-            Plastics (like BPA), pesticides, and cleaning chemicals can mess with your hormones. Avoid plastic containers and wash fruits and veggies well.
+            Plastics (like BPA), pesticides, and cleaning chemicals disrupt hormones. 
+            *Minimize exposure*: use glass containers and wash produce thoroughly.
 
             7. Stress
-            Stress raises cortisol, which lowers sperm production. Take time to relax—walk, exercise, meditate, or just breathe.
+            Chronic stress raises cortisol, lowering sperm production. 
+            *Try*: 5–10 minutes of walking, meditation, or deep breathing daily.
 
-            Small changes can make a big difference. Avoid the bad stuff and your sperm will thank you.
+            *Small tweaks* can protect your sperm and boost your fertility.
+
+            *This article is for informational purposes only and is not medical advice. Consult a doctor for personalized guidance.*
             """
         ),
         Article(
@@ -144,18 +170,32 @@ struct ArticleContent {
             description: "It’s not always easy—but it’s always worth it.",
             imageName: "articleimage5",
             content: """
-            Talking about fertility isn’t always simple. It can feel awkward, scary, or even emotional. But having open and honest conversations with your partner is one of the best things you can do—especially if you’re trying to start a family.
+            Discussing fertility can feel daunting—awkward, emotional, or even scary. *Open, honest talks* with your partner build trust and teamwork, especially when trying to conceive.
 
-            Pick a calm, private time when you both feel relaxed—like during a quiet walk or evening together.
+            Here’s how to approach it:
 
-            Start with something simple like,
-            “I’ve been thinking about our fertility and wanted to share what I’ve learned.”
+            Choose the Right Moment
+            Pick a calm, private setting—like a quiet walk or cozy evening at home. 
+            *Avoid rushed or stressful times* to keep the conversation relaxed.
 
-            Stick to facts, not blame. Talk about your health, your test results, or what changes you’re trying to make. Then give your partner space to respond. Really listen.
+            Start Simply
+            Ease into the topic with a gentle opener. 
+            *Try saying*: “I’ve been thinking about our fertility and wanted to share what I’ve learned.”
 
-            This isn’t a one-time talk. Keep checking in with each other. Talk about how you’re feeling. Make plans together—like visiting a doctor or improving your health as a team.
+            Focus on Facts, Not Blame
+            Share your health updates, test results, or lifestyle changes. 
+            *Be open*: encourage your partner to share their thoughts too.
 
-            You don’t have to be perfect. Just honest. Every strong family starts with strong communication.
+            Listen Actively
+            Give your partner space to respond. *Really listen* to their feelings or concerns without judgment.
+
+            Keep the Conversation Going
+            Fertility talks aren’t one-and-done. 
+            *Check in regularly*: discuss feelings, plans, or next steps like seeing a doctor together.
+
+            *Honesty and teamwork* lay the foundation for a strong family. You’ve got this.
+
+            *This article is for informational purposes only and is not medical advice. Consult a doctor for personalized guidance.*
             """
         )
     ]

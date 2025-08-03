@@ -52,6 +52,9 @@ struct DashboardView: View {
                         
                         CoreMetricsOverviewView()
                         
+                        // New "Add a New Sperm Test" card
+                        AddTestCardView(showInput: $showInput)
+                        
                         RecentTestsSection(
                             selectedTab: $selectedTab,
                             showPaywall: $showPaywall,
@@ -258,6 +261,59 @@ struct DashboardView: View {
             checkedTips = [:]
             lastTipDate = currentDate
         }
+    }
+}
+
+// Updated card view for "Add a New Sperm Test" with matching border, increased icon-title spacing, and modified button
+struct AddTestCardView: View {
+    @Binding var showInput: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "plus.circle.fill")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 40, height: 40)
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 12) // Increased spacing between icon and title
+            
+            Text("Add a New Sperm Test")
+                .font(.headline)
+                .fontDesign(.rounded)
+                .fontWeight(.bold)
+                .foregroundColor(.black)
+            
+            Text("See how your sperm health is improving. Tracking multiple tests gives you deeper insights and trends.")
+                .font(.subheadline)
+                .fontDesign(.rounded)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.leading)
+            
+            HStack {
+                Spacer()
+                Button(action: {
+                    showInput = true
+                }) {
+                    Text("Get Started")
+                        .font(.body.bold()) // Larger text
+                        .fontDesign(.rounded)
+                        .foregroundColor(.white)
+                        .padding(.vertical, 10) // Slightly larger button
+                        .padding(.horizontal, 16)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                }
+                .accessibilityLabel("Get Started with New Sperm Test")
+                Spacer()
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white)
+        .cornerRadius(10) // Match TestCardView and MetricCardView
+        .shadow(radius: 2) // Match TestCardView and MetricCardView
+        .padding(.horizontal)
     }
 }
 
@@ -806,6 +862,7 @@ struct DisclaimerView: View {
         Text("Visualizations are based on WHO 6th Edition standards for informational purposes only. Fathr is not a medical device. Consult a doctor for fertility concerns.")
             .font(.caption)
             .foregroundColor(.gray)
+            .italic()
             .multilineTextAlignment(.center)
             .padding(.horizontal)
             .padding(.top)

@@ -52,7 +52,7 @@ struct DashboardView: View {
                         
                         CoreMetricsOverviewView()
                         
-                        // New "Add a New Sperm Test" card
+                        // Place AddTestCardView between CoreMetricsOverviewView and RecentTestsSection
                         AddTestCardView(showInput: $showInput)
                         
                         RecentTestsSection(
@@ -81,10 +81,19 @@ struct DashboardView: View {
                                 checkedTips[index] = !(checkedTips[index] ?? false)
                             }
                         )
+                    } else {
+                        // Show AddTestCardView and RecentTestsSection (placeholder) for new users
+                        AddTestCardView(showInput: $showInput)
                         
-                        // Articles section
-                        ArticlesView()
+                        RecentTestsSection(
+                            selectedTab: $selectedTab,
+                            showPaywall: $showPaywall,
+                            selectedTest: $selectedTest
+                        )
                     }
+                    
+                    // Show Articles for all users
+                    ArticlesView()
                     
                     DisclaimerView()
                 }
@@ -264,19 +273,18 @@ struct DashboardView: View {
     }
 }
 
-// Updated card view for "Add a New Sperm Test" with matching border, increased icon-title spacing, and modified button
 struct AddTestCardView: View {
     @Binding var showInput: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: "plus.circle.fill")
+            Image("testbadge")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 40, height: 40)
+                .frame(width: 120, height: 120) // Increased from 40x40 to 120x120
                 .foregroundColor(.blue)
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 12) // Increased spacing between icon and title
+                .padding(.bottom, 12) // Maintain 12pt spacing between icon and title
             
             Text("Add a New Sperm Test")
                 .font(.headline)
@@ -496,7 +504,7 @@ struct FertilitySnapshotView: View {
         guard testStore.tests.count > 1 else { return .none }
 
         let latestTest = testStore.tests[0]
-        let motilityScore = min((latestTest.totalMobility ?? testStore.tests[0].totalMobility ?? 0.0) * 2.5, 100.0)
+        let motilityScore = min((latestTest.totalMobility ?? 0.0) * 2.5, 100.0)
         let concentrationScore: Double = {
             let conc = latestTest.spermConcentration ?? 0.0
             return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0

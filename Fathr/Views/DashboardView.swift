@@ -40,7 +40,29 @@ struct DashboardView: View {
                         .padding(.top, 16)
                         .padding(.bottom, 8)
                     
-                    WelcomeHeaderView(showInput: $showInput)
+                    WelcomeHeaderView()
+                    
+                    // Side-by-side card section
+                    HStack(alignment: .center, spacing: 16) {
+                        // Add a New Sperm Test Card
+                        Button(action: {
+                            showInput = true
+                        }) {
+                            AddTestCardView()
+                                .frame(maxWidth: .infinity, maxHeight: 160)
+                        }
+                        .accessibilityLabel("Add a New Sperm Test")
+                        
+                        // 74 Day Reset Challenge Card
+                        Button(action: {
+                            // Placeholder for future action
+                        }) {
+                            SeventyFourDayResetCardView()
+                                .frame(maxWidth: .infinity, maxHeight: 160)
+                        }
+                        .accessibilityLabel("74 Day Reset Challenge")
+                    }
+                    .padding(.horizontal)
                     
                     // Show premium content only if tests exist
                     if !testStore.tests.isEmpty {
@@ -51,9 +73,6 @@ struct DashboardView: View {
                         )
                         
                         CoreMetricsOverviewView()
-                        
-                        // Place AddTestCardView between CoreMetricsOverviewView and RecentTestsSection
-                        AddTestCardView(showInput: $showInput)
                         
                         RecentTestsSection(
                             selectedTab: $selectedTab,
@@ -82,9 +101,6 @@ struct DashboardView: View {
                             }
                         )
                     } else {
-                        // Show AddTestCardView and RecentTestsSection (placeholder) for new users
-                        AddTestCardView(showInput: $showInput)
-                        
                         RecentTestsSection(
                             selectedTab: $selectedTab,
                             showPaywall: $showPaywall,
@@ -145,7 +161,7 @@ struct DashboardView: View {
         let motilityThreshold = 40.0
         let concentrationThreshold = 15.0
         let morphologyThreshold = 4.0
-        let dnaFragmentationThreshold = 15.0 // Example threshold for DNA fragmentation risk
+        let dnaFragmentationThreshold = 15.0
         let semenQuantityThreshold = 1.4
         let pHMinThreshold = 7.2
         let pHMaxThreshold = 8.0
@@ -176,7 +192,7 @@ struct DashboardView: View {
             winningMetrics.append("Motility: \(Int(motility))% (Great movement!)")
             if hasDeclinedDouble(metric: motility, historicalKeyPath: \.totalMobility, threshold: motilityThreshold) {
                 improvementMetrics.append("Motility: \(Int(motility))% is strong, but down from your average. Try regular exercise to maintain it.")
-            } else if motility < 50.0 { // Aspirational threshold
+            } else if motility < 50.0 {
                 improvementMetrics.append("Motility: \(Int(motility))% is good. Aim for ≥ 50% with a diet rich in antioxidants.")
             }
         } else {
@@ -189,7 +205,7 @@ struct DashboardView: View {
             winningMetrics.append("Concentration: \(Int(concentration)) million/mL (Strong count!)")
             if hasDeclinedDouble(metric: concentration, historicalKeyPath: \.spermConcentration, threshold: concentrationThreshold) {
                 improvementMetrics.append("Concentration: \(Int(concentration)) million/mL is good, but lower than your average. Avoid heat exposure.")
-            } else if concentration < 20.0 { // Aspirational threshold
+            } else if concentration < 20.0 {
                 improvementMetrics.append("Concentration: \(Int(concentration)) million/mL is solid. Boost to ≥ 20 million/mL with Brazil nuts for selenium.")
             }
         } else {
@@ -202,7 +218,7 @@ struct DashboardView: View {
             winningMetrics.append("Morphology: \(Int(morphology))% normal forms (Solid structure!)")
             if hasDeclinedDouble(metric: morphology, historicalKeyPath: \.morphologyRate, threshold: morphologyThreshold) {
                 improvementMetrics.append("Morphology: \(Int(morphology))% is good, but below your average. Reduce stress to maintain it.")
-            } else if morphology < 6.0 { // Aspirational threshold
+            } else if morphology < 6.0 {
                 improvementMetrics.append("Morphology: \(Int(morphology))% is strong. Aim for ≥ 6% with Omega-3 supplements.")
             }
         } else {
@@ -222,7 +238,7 @@ struct DashboardView: View {
             winningMetrics.append("DNA Fragmentation: Low risk (Healthy sperm DNA!)")
             if hasDeclinedInt(metric: dnaFragmentation, historicalKeyPath: \.dnaFragmentationRisk, threshold: dnaFragmentationThreshold) {
                 improvementMetrics.append("DNA Fragmentation: Low but slightly up from your average. Avoid oxidative stress with berries.")
-            } else if Double(dnaFragmentation) > 10.0 { // Aspirational threshold
+            } else if Double(dnaFragmentation) > 10.0 {
                 improvementMetrics.append("DNA Fragmentation: Low risk. Keep it below 10% with antioxidant-rich foods.")
             }
         } else {
@@ -235,7 +251,7 @@ struct DashboardView: View {
             winningMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL (Good volume!)")
             if hasDeclinedDouble(metric: semenQuantity, historicalKeyPath: \.semenQuantity, threshold: semenQuantityThreshold) {
                 improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL is good, but below your average. Stay hydrated.")
-            } else if semenQuantity < 2.0 { // Aspirational threshold
+            } else if semenQuantity < 2.0 {
                 improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL is sufficient. Aim for ≥ 2.0 mL with adequate hydration.")
             }
         } else {
@@ -274,60 +290,59 @@ struct DashboardView: View {
 }
 
 struct AddTestCardView: View {
-    @Binding var showInput: Bool
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image("testbadge")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 120, height: 120) // Increased from 40x40 to 120x120
-                .foregroundColor(.blue)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 12) // Maintain 12pt spacing between icon and title
-            
+        VStack(spacing: 8) {
+            Image(systemName: "plus")
+                .font(.system(size: 20))
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Text("Add a New Sperm Test")
-                .font(.headline)
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
                 .foregroundColor(.black)
-            
-            Text("See how your sperm health is improving. Tracking multiple tests gives you deeper insights and trends.")
-                .font(.subheadline)
-                .fontDesign(.rounded)
-                .foregroundColor(.gray)
                 .multilineTextAlignment(.leading)
-            
-            HStack {
-                Spacer()
-                Button(action: {
-                    showInput = true
-                }) {
-                    Text("Get Started")
-                        .font(.body.bold()) // Larger text
-                        .fontDesign(.rounded)
-                        .foregroundColor(.white)
-                        .padding(.vertical, 10) // Slightly larger button
-                        .padding(.horizontal, 16)
-                        .background(Color.blue)
-                        .cornerRadius(8)
-                }
-                .accessibilityLabel("Get Started with New Sperm Test")
-                Spacer()
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .background(Color.white)
-        .cornerRadius(10) // Match TestCardView and MetricCardView
-        .shadow(radius: 2) // Match TestCardView and MetricCardView
-        .padding(.horizontal)
+        .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.red, lineWidth: 0.5)
+        )
+        .shadow(color: .gray.opacity(0.1), radius: 5)
+    }
+}
+
+struct SeventyFourDayResetCardView: View {
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "star.fill")
+                .font(.system(size: 20))
+                .foregroundColor(.white)
+                .padding(8)
+                .background(Color.black)
+                .clipShape(Circle())
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("74 Day Reset Challenge")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .background(Color.black)
+        .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.black, lineWidth: 1)
+        )
+        .shadow(color: .gray.opacity(0.1), radius: 5)
     }
 }
 
 struct WelcomeHeaderView: View {
-    @Binding var showInput: Bool
-
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -342,17 +357,6 @@ struct WelcomeHeaderView: View {
                     .foregroundColor(.gray.opacity(0.8))
             }
             Spacer()
-            Button(action: {
-                showInput = true
-            }) {
-                Image(systemName: "plus")
-                    .font(.body.bold())
-                    .foregroundColor(.white)
-                    .frame(width: 32, height: 32)
-                    .background(Color.blue)
-                    .clipShape(Circle())
-            }
-            .accessibilityLabel("Add New Test")
         }
         .padding(.horizontal)
     }
@@ -428,7 +432,7 @@ struct FertilitySnapshotView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: 160)
-                .background(Color.white)
+                .background(Color.gray.opacity(0.2))
                 .cornerRadius(15)
                 .shadow(color: .gray.opacity(0.1), radius: 5)
             }
@@ -637,11 +641,9 @@ struct ProgressBarView: View {
                     .foregroundColor(.black)
             }
             ZStack(alignment: .leading) {
-                // Full bar (unfilled portion) in lighter shade
                 Rectangle()
                     .fill(barColor.opacity(0.3))
                     .frame(height: 18)
-                // Filled portion
                 Rectangle()
                     .fill(barColor)
                     .frame(width: CGFloat(value / maxValue) * UIScreen.main.bounds.width * 0.9, height: 18)
@@ -686,7 +688,7 @@ struct RecentTestsSection: View {
                         .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray)
-                    Text("Tap the + button above to add your first test.")
+                    Text("Tap the Add a New Sperm Test card to add your first test.")
                         .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(.gray.opacity(0.8))

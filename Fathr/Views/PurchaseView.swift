@@ -8,12 +8,12 @@ struct PurchaseView: View {
     @State private var selectedPackage: Package?
     @State private var freeTrialEnabled: Bool = true
     @State private var errorMessage: String?
-    @State private var showCloseButton: Bool = false // State for close button visibility
+    @State private var showCloseButton: Bool = false
 
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Header with close button or loading circle
+                // Header
                 HStack {
                     if showCloseButton {
                         Button(action: {
@@ -27,14 +27,14 @@ struct PurchaseView: View {
                         .accessibilityLabel("Close")
                     } else {
                         ProgressView()
-                            .scaleEffect(1.0) // Match size to title3 font
+                            .scaleEffect(1.0)
                             .padding(geometry.size.width > 600 ? 16 : 12)
                             .accessibilityLabel("Loading, please wait")
                     }
                     Spacer()
                 }
-                
-                // FathrPro logo with rounded corners
+
+                // Logo
                 Image("fathrpro")
                     .resizable()
                     .scaledToFit()
@@ -42,52 +42,48 @@ struct PurchaseView: View {
                     .frame(width: min(geometry.size.width * 0.3, 200))
                     .padding(.vertical, 20)
                     .accessibilityLabel("FathrPro Logo")
-                
+
                 // Headline
-                Text("Premium Access")
+                Text("Unlock Premium Access")
                     .font(.custom("SFProDisplay-Black", size: 32))
-                    .bold() // Extra emphasis for boldness
+                    .bold()
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                     .padding(.bottom, 12)
-                    .accessibilityLabel("Premium Access")
-                
-                // Features list
+
+                // Features
                 VStack(alignment: .leading, spacing: 20) {
                     FeatureRow(text: "Add Unlimited Tests")
-                    FeatureRow(text: "Get personalized suggestions")
+                    FeatureRow(text: "Get personalized fertility roadmap")
                     FeatureRow(text: "Reach your family goals faster")
                     FeatureRow(text: "Remove annoying paywalls")
                 }
                 .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                 .padding(.bottom, 24)
-                
-                // Payment options or error state
+
+                // Error or Packages
                 if let error = errorMessage ?? purchaseModel.errorMessage {
                     VStack(spacing: 8) {
                         Text("Error: \(error)")
-                            .font(.system(.subheadline, design: .default, weight: .regular))
+                            .font(.system(.subheadline))
                             .foregroundColor(.red)
-                            .accessibilityLabel("Error: \(error)")
                         Button("Retry") {
                             errorMessage = nil
                             Task {
                                 await purchaseModel.fetchOfferings()
                             }
                         }
-                        .font(.system(.headline, design: .default, weight: .semibold))
+                        .font(.system(.headline))
                         .foregroundColor(.white)
                         .frame(maxWidth: min(geometry.size.width * 0.8, 400))
                         .padding()
                         .background(.black)
                         .cornerRadius(8)
-                        .accessibilityLabel("Retry fetching offerings")
                     }
                     .padding(.vertical, 8)
                     .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                 } else if let offering = purchaseModel.currentOffering {
                     VStack(spacing: 8) {
-                        // Yearly Plan
                         PackageButton(
                             title: "Yearly Plan",
                             price: offering.package(identifier: "yearly_pro")?.storeProduct.localizedPriceString ?? "$29.99 per year",
@@ -102,8 +98,7 @@ struct PurchaseView: View {
                             }
                         )
                         .frame(maxWidth: min(geometry.size.width * 0.9, 600))
-                        
-                        // Weekly Plan with Trial
+
                         PackageButton(
                             title: "3-Day Trial",
                             price: "then \(offering.package(identifier: "weekly_pro_trial")?.storeProduct.localizedPriceString ?? "$5.99") per week",
@@ -124,82 +119,71 @@ struct PurchaseView: View {
                         .padding()
                         .accessibilityLabel("Loading purchase options")
                 }
-                
-                // Free trial toggle, cancel anytime text, and purchase button
-                VStack(spacing: 4) {
-                    // Free Trial Enabled Card
-                    HStack {
+
+                // Free Trial Card with Toggle + No Commitment
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Free Trial Enabled")
                             .font(.system(.headline, design: .default, weight: .bold))
                             .foregroundColor(.black)
-                        Spacer()
-                        Toggle("", isOn: $freeTrialEnabled)
-                            .labelsHidden()
-                            .tint(.green)
-                            .accessibilityLabel("Toggle free trial")
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 11)
-                    .padding(.bottom, 11)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                    .frame(maxWidth: min(geometry.size.width * 0.9, 600))
-                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
-                    .padding(.top, 6)
-                    
-                    // No Commitment - Cancel Anytime
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(.subheadline, design: .default, weight: .regular))
-                            .foregroundColor(.blue)
-                        Text("No Commitment - Cancel Anytime")
-                            .font(.system(.subheadline, design: .default, weight: .regular))
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
-                    
-                    // Purchase button
-                    Button(action: {
-                        if let package = selectedPackage {
-                            isPurchasing = true
-                            Task {
-                                await purchaseModel.purchase(package: package) { _ in
-                                    isPurchasing = false
-                                }
-                            }
+                        HStack(spacing: 4) {
+                            Text("No payment required today")
+                                .font(.system(.subheadline))
+                                .foregroundColor(.gray)
                         }
-                    }) {
-                        HStack {
-                            Text(isPurchasing ? "Processing..." : "Try 3 days free")
-                            if !isPurchasing {
-                                Image(systemName: "chevron.right")
-                            }
-                        }
-                        .font(.system(.headline, design: .default, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: min(geometry.size.width * 0.8, 400))
-                        .padding()
-                        .background(selectedPackage == nil || isPurchasing ? Color.gray : Color.blue)
-                        .cornerRadius(10)
                     }
-                    .disabled(selectedPackage == nil || isPurchasing)
-                    .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
-                    .accessibilityLabel(isPurchasing ? "Processing purchase" : "Try 3 days free")
-                    
-                    if isPurchasing {
-                        ProgressView()
-                            .padding(.top, 4)
-                            .accessibilityLabel("Purchase in progress")
-                    }
+                    Spacer()
+                    Toggle("", isOn: $freeTrialEnabled)
+                        .labelsHidden()
+                        .tint(.green)
+                        .accessibilityLabel("Toggle free trial")
                 }
-                
-                // Footer links
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
+                .frame(maxWidth: min(geometry.size.width * 0.9, 600))
+                .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
+                .padding(.top, 6)
+                .padding(.bottom, 16)
+
+                // Purchase Button
+                Button(action: {
+                    if let package = selectedPackage {
+                        isPurchasing = true
+                        Task {
+                            await purchaseModel.purchase(package: package) { _ in
+                                isPurchasing = false
+                            }
+                        }
+                    }
+                }) {
+                    HStack {
+                        Text(isPurchasing ? "Processing..." : "Try 3 days free")
+                        if !isPurchasing {
+                            Image(systemName: "chevron.right")
+                        }
+                    }
+                    .font(.system(.headline))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: min(geometry.size.width * 0.8, 400))
+                    .padding()
+                    .background(selectedPackage == nil || isPurchasing ? Color.gray : Color.blue)
+                    .cornerRadius(10)
+                }
+                .disabled(selectedPackage == nil || isPurchasing)
+                .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
+
+                if isPurchasing {
+                    ProgressView()
+                        .padding(.top, 4)
+                        .accessibilityLabel("Purchase in progress")
+                }
+
+                // Footer Links
                 HStack(spacing: 16) {
                     Button("Restore Purchases") {
                         isPurchasing = true
@@ -209,23 +193,20 @@ struct PurchaseView: View {
                             }
                         }
                     }
-                    .font(.system(.caption, design: .default, weight: .regular))
+                    .font(.caption)
                     .foregroundColor(.gray)
-                    .accessibilityLabel("Restore Purchases")
-                    
+
                     Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                        .font(.system(.caption, design: .default, weight: .regular))
+                        .font(.caption)
                         .foregroundColor(.gray)
-                        .accessibilityLabel("Terms of Use")
-                    
+
                     Link("Privacy Policy", destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
-                        .font(.system(.caption, design: .default, weight: .regular))
+                        .font(.caption)
                         .foregroundColor(.gray)
-                        .accessibilityLabel("Privacy Policy")
                 }
                 .padding(.top, 8)
                 .padding(.bottom, geometry.size.width > 600 ? 16 : 8)
-                
+
                 Spacer()
             }
             .frame(maxWidth: .infinity)
@@ -240,7 +221,6 @@ struct PurchaseView: View {
                         selectedPackage = freeTrialEnabled ? offering.package(identifier: "weekly_pro_trial") : offering.package(identifier: "yearly_pro")
                     }
                 }
-                // Start 5-second timer for close button
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
                     withAnimation {
                         showCloseButton = true
@@ -264,6 +244,7 @@ struct PurchaseView: View {
     }
 }
 
+// MARK: - Feature Row
 struct FeatureRow: View {
     let text: String
 
@@ -280,6 +261,7 @@ struct FeatureRow: View {
     }
 }
 
+// MARK: - Package Button
 struct PackageButton: View {
     let title: String
     let price: String
@@ -293,7 +275,6 @@ struct PackageButton: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.custom("SFProDisplay-Bold", size: 16))
-                .font(.system(size: 16, weight: .bold))
             if let crossedOutPrice = crossedOutPrice {
                 HStack(spacing: 4) {
                     Text(crossedOutPrice)
@@ -316,15 +297,15 @@ struct PackageButton: View {
         HStack(alignment: .center, spacing: 8) {
             if let badge = badgeText {
                 Text(badge)
-                    .font(isWeeklyPlan ? .system(size: 13, weight: .bold) : .system(.caption2, design: .default, weight: .bold)) // 13pt for SHORT TERM, caption2 for BEST VALUE
-                    .foregroundColor(isWeeklyPlan ? .black : .white) // Black for SHORT TERM, white for BEST VALUE
+                    .font(isWeeklyPlan ? .system(size: 13, weight: .bold) : .system(.caption2, weight: .bold))
+                    .foregroundColor(isWeeklyPlan ? .black : .white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(isWeeklyPlan ? Color.clear : Color.red) // Clear for SHORT TERM, red for BEST VALUE
+                    .background(isWeeklyPlan ? Color.clear : Color.red)
                     .cornerRadius(4)
             }
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.system(.title3, design: .default, weight: .regular))
+                .font(.system(.title3))
                 .foregroundColor(isSelected ? .blue : .gray)
         }
     }
@@ -343,18 +324,10 @@ struct PackageButton: View {
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? Color.blue : Color.gray.opacity(0.3), lineWidth: 1)
+                    .stroke(isSelected ? Color.blue : Color.gray.opacity(0.4), lineWidth: 2)
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("\(title), \(price)\(badgeText != nil ? ", \(badgeText!)" : "")\(isSelected ? ", selected" : "")")
     }
 }
 
-#Preview("iPhone 14") {
-    PurchaseView(isPresented: .constant(true), purchaseModel: PurchaseModel())
-}
-
-#Preview("iPad Pro") {
-    PurchaseView(isPresented: .constant(true), purchaseModel: PurchaseModel())
-}

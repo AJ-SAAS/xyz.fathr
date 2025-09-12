@@ -24,7 +24,7 @@ struct AuthView: View {
                             .padding(.top, geometry.size.width > 600 ? 40 : 24)
                             .accessibilityLabel("Fathr Logo")
 
-                        Text(isSignUp ? "Create Account" : "Sign In")
+                        Text(isSignUp ? "Get started" : "Sign In")
                             .font(.system(.largeTitle, design: .default, weight: .bold))
                             .foregroundColor(.black)
                             .frame(maxWidth: .infinity, alignment: .leading)

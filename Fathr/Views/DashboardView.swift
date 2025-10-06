@@ -1,11 +1,9 @@
 import SwiftUI
 
-// Move Trend enum to file level to ensure accessibility
 enum Trend {
     case up, down, none
 }
 
-// Move Color extension to file scope
 extension Color {
     func darker(by percentage: Double) -> Color {
         let components = UIColor(self).cgColor.components ?? [0, 0, 0, 1]
@@ -19,6 +17,7 @@ extension Color {
 struct DashboardView: View {
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
+    @EnvironmentObject var authManager: AuthManager
     @State private var showInput = false
     @State private var showPaywall = false
     @AppStorage("lastTipDate") private var lastTipDate: String = ""
@@ -26,12 +25,15 @@ struct DashboardView: View {
     @Binding var selectedTab: Int
     @State private var showFullAnalysis = false
     @State private var selectedTest: TestData?
+    @State private var challengeProgress: TestStore.ChallengeProgress?
+    @State private var isLoadingChallengeProgress = true
+    @State private var navigateToChallenge = false
+    @AppStorage("hasCompletedChallengeOnboarding") private var hasCompletedChallengeOnboarding = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Logo at top center
                     Image("Fathr-logo-dash")
                         .resizable()
                         .scaledToFit()
@@ -42,9 +44,7 @@ struct DashboardView: View {
                     
                     WelcomeHeaderView()
                     
-                    // Side-by-side card section
                     HStack(alignment: .center, spacing: 16) {
-                        // Add a New Sperm Test Card
                         Button(action: {
                             showInput = true
                         }) {
@@ -53,9 +53,8 @@ struct DashboardView: View {
                         }
                         .accessibilityLabel("Add a New Sperm Test")
                         
-                        // 74 Day Reset Challenge Card
                         Button(action: {
-                            // Placeholder for future action
+                            navigateToChallenge = true
                         }) {
                             SeventyFourDayResetCardView()
                                 .frame(maxWidth: .infinity, maxHeight: 160)
@@ -64,7 +63,6 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Show premium content only if tests exist
                     if !testStore.tests.isEmpty {
                         FertilitySnapshotView(
                             selectedTab: $selectedTab,
@@ -108,7 +106,6 @@ struct DashboardView: View {
                         )
                     }
                     
-                    // Show Articles for all users
                     ArticlesView()
                     
                     DisclaimerView()
@@ -140,15 +137,65 @@ struct DashboardView: View {
                         .environmentObject(purchaseModel)
                 }
             }
+            .navigationDestination(isPresented: $navigateToChallenge) {
+                challengeDestinationView()
+            }
             .onAppear {
                 updateDailyTips()
                 print("DashboardView: testStore.tests count: \(testStore.tests.count)")
                 for test in testStore.tests {
                     print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus), overallStatus: \(test.overallStatus), Date: \(test.date), Concentration: \(test.spermConcentration ?? 0), Motility: \(test.totalMobility ?? 0)")
                 }
+                loadChallengeProgress()
             }
             .onChange(of: lastTipDate) {
                 updateDailyTips()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func challengeDestinationView() -> some View {
+        if isLoadingChallengeProgress {
+            ProgressView().padding()
+        } else if hasCompletedChallengeOnboarding,
+                  let progress = challengeProgress,
+                  let startDate = progress.startDate {
+            ChallengeView(startDate: startDate, testStore: testStore)
+                .environmentObject(authManager)
+        } else if hasCompletedChallengeOnboarding {
+            ChallengeView(startDate: Date(), testStore: testStore)
+                .environmentObject(authManager)
+        } else {
+            ChallengeOnboardingView()
+                .environmentObject(testStore)
+                .environmentObject(authManager)
+                .onDisappear {
+                    hasCompletedChallengeOnboarding = true
+                    print("DashboardView: Onboarding marked complete via .onDisappear")
+                }
+        }
+    }
+
+    private func loadChallengeProgress() {
+        guard let userId = authManager.currentUserID else {
+            print("DashboardView: No user ID found — skipping challenge progress load.")
+            isLoadingChallengeProgress = false
+            return
+        }
+
+        print("DashboardView: Fetching challenge progress for user: \(userId)")
+        testStore.fetchChallengeProgress(userId: userId) { progress in
+            DispatchQueue.main.async {
+                self.challengeProgress = progress
+                self.isLoadingChallengeProgress = false
+
+                if progress?.startDate != nil {
+                    self.hasCompletedChallengeOnboarding = true
+                    print("DashboardView: Challenge progress found — marking onboarding as complete.")
+                } else {
+                    print("DashboardView: No startDate found — onboarding still pending.")
+                }
             }
         }
     }
@@ -157,7 +204,6 @@ struct DashboardView: View {
         var winningMetrics: [String] = []
         var improvementMetrics: [String] = []
 
-        // Define thresholds based on WHO standards
         let motilityThreshold = 40.0
         let concentrationThreshold = 15.0
         let morphologyThreshold = 4.0
@@ -166,7 +212,6 @@ struct DashboardView: View {
         let pHMinThreshold = 7.2
         let pHMaxThreshold = 8.0
 
-        // Helper function to check historical decline for Double? properties
         func hasDeclinedDouble(metric: Double, historicalKeyPath: KeyPath<TestData, Double?>, threshold: Double) -> Bool {
             guard testStore.tests.count > 1 else { return false }
             let previousTests = testStore.tests.dropFirst()
@@ -176,7 +221,6 @@ struct DashboardView: View {
             return metric < avgHistorical && metric >= threshold
         }
 
-        // Helper function to check historical decline for Int? properties
         func hasDeclinedInt(metric: Int, historicalKeyPath: KeyPath<TestData, Int?>, threshold: Double) -> Bool {
             guard testStore.tests.count > 1 else { return false }
             let previousTests = testStore.tests.dropFirst()
@@ -186,7 +230,6 @@ struct DashboardView: View {
             return Double(metric) < avgHistorical && Double(metric) >= threshold
         }
 
-        // Motility
         let motility = test.totalMobility ?? 0.0
         if motility >= motilityThreshold {
             winningMetrics.append("Motility: \(Int(motility))% (Great movement!)")
@@ -199,7 +242,6 @@ struct DashboardView: View {
             improvementMetrics.append("Motility: \(Int(motility))% (Aim for ≥ 40% with zinc-rich foods like pumpkin seeds)")
         }
 
-        // Concentration
         let concentration = test.spermConcentration ?? 0.0
         if concentration >= concentrationThreshold {
             winningMetrics.append("Concentration: \(Int(concentration)) million/mL (Strong count!)")
@@ -212,7 +254,6 @@ struct DashboardView: View {
             improvementMetrics.append("Concentration: \(Int(concentration)) million/mL (Aim for ≥ 15 million/mL with a balanced diet)")
         }
 
-        // Morphology
         let morphology = test.morphologyRate ?? 0.0
         if morphology >= morphologyThreshold {
             winningMetrics.append("Morphology: \(Int(morphology))% normal forms (Solid structure!)")
@@ -225,14 +266,12 @@ struct DashboardView: View {
             improvementMetrics.append("Morphology: \(Int(morphology))% normal forms (Aim for ≥ 4% with CoQ10 supplements)")
         }
 
-        // Sperm Analysis Status
         if test.analysisStatus == "Typical" {
             winningMetrics.append("Sperm Analysis: Typical (Excellent overall health!)")
         } else {
             improvementMetrics.append("Sperm Analysis: \(test.analysisStatus) (Consult a specialist for personalized advice)")
         }
 
-        // Additional Metric: DNA Fragmentation Risk
         let dnaFragmentation = test.dnaFragmentationRisk ?? 0
         if Double(dnaFragmentation) <= dnaFragmentationThreshold {
             winningMetrics.append("DNA Fragmentation: Low risk (Healthy sperm DNA!)")
@@ -245,7 +284,6 @@ struct DashboardView: View {
             improvementMetrics.append("DNA Fragmentation: \(Int(dnaFragmentation))% (Aim for ≤ 15% by avoiding smoking and stress)")
         }
 
-        // Additional Metric: Semen Quantity
         let semenQuantity = test.semenQuantity ?? 0.0
         if semenQuantity >= semenQuantityThreshold {
             winningMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL (Good volume!)")
@@ -258,7 +296,6 @@ struct DashboardView: View {
             improvementMetrics.append("Semen Volume: \(String(format: "%.1f", semenQuantity)) mL (Aim for ≥ 1.4 mL with adequate hydration)")
         }
 
-        // Additional Metric: pH
         let pH = test.pH ?? 0.0
         if pH >= pHMinThreshold && pH <= pHMaxThreshold {
             winningMetrics.append("pH: \(String(format: "%.1f", pH)) (Optimal range!)")
@@ -269,7 +306,6 @@ struct DashboardView: View {
             improvementMetrics.append("pH: \(String(format: "%.1f", pH)) (Aim for 7.2–8.0 with a balanced diet)")
         }
 
-        // Fallback: If no improvement metrics, provide general maintenance tips
         if improvementMetrics.isEmpty {
             improvementMetrics.append("All metrics are excellent! Maintain with daily hydration and a nutrient-rich diet.")
         }
@@ -286,6 +322,70 @@ struct DashboardView: View {
             checkedTips = [:]
             lastTipDate = currentDate
         }
+    }
+
+    private func calculateTrend() -> Trend {
+        guard testStore.tests.count > 1 else { return .none }
+
+        let latestTest = testStore.tests[0]
+        let motilityScore = min((latestTest.totalMobility ?? 0.0) * 2.5, 100.0)
+        let concentrationScore: Double = {
+            let conc = latestTest.spermConcentration ?? 0.0
+            return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+        }()
+        let morphologyScore: Double = {
+            let morph = latestTest.morphologyRate ?? 0.0
+            return morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+        }()
+        let dnaScore = max(100.0 - (((Double(latestTest.dnaFragmentationRisk ?? 0)) / 15.0) * 50.0), 0.0)
+        let analysisScore = calculateAnalysisScore(latestTest)
+        
+        let currentOverall = (0.35 * motilityScore) + (0.30 * concentrationScore) + (0.15 * morphologyScore) +
+                             (0.10 * dnaScore) + (0.10 * analysisScore)
+
+        let previousTests = Array(testStore.tests.dropFirst())
+        let prevCount = Double(previousTests.count)
+
+        let totalMotility = previousTests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
+        let totalConcentration = previousTests.reduce(0.0) {
+            let conc = $1.spermConcentration ?? 0.0
+            let score = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalMorphology = previousTests.reduce(0.0) {
+            let morph = $1.morphologyRate ?? 0.0
+            let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+            return $0 + min(score, 100.0)
+        }
+        let totalDna = previousTests.reduce(0.0) {
+            let dna = Double($1.dnaFragmentationRisk ?? 0)
+            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            return $0 + score
+        }
+        let totalAnalysis = previousTests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
+
+        let previousOverall = (
+            (0.35 * (totalMotility / prevCount)) +
+            (0.30 * (totalConcentration / prevCount)) +
+            (0.15 * (totalMorphology / prevCount)) +
+            (0.10 * (totalDna / prevCount)) +
+            (0.10 * (totalAnalysis / prevCount))
+        )
+
+        if currentOverall > previousOverall { return .up }
+        if currentOverall < previousOverall { return .down }
+        return .none
+    }
+
+    private func calculateAnalysisScore(_ test: TestData) -> Double {
+        var score: Double = 0
+        
+        if test.appearance == .normal { score += 25 }
+        if test.liquefaction == .normal { score += 25 }
+        if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
+        if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
+        
+        return score
     }
 }
 
@@ -502,59 +602,6 @@ struct FertilitySnapshotView: View {
         if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
         
         return score
-    }
-
-    private func calculateTrend() -> Trend {
-        guard testStore.tests.count > 1 else { return .none }
-
-        let latestTest = testStore.tests[0]
-        let motilityScore = min((latestTest.totalMobility ?? 0.0) * 2.5, 100.0)
-        let concentrationScore: Double = {
-            let conc = latestTest.spermConcentration ?? 0.0
-            return conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
-        }()
-        let morphologyScore: Double = {
-            let morph = latestTest.morphologyRate ?? 0.0
-            return morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
-        }()
-        let dnaScore = max(100.0 - (((Double(latestTest.dnaFragmentationRisk ?? 0)) / 15.0) * 50.0), 0.0)
-        let analysisScore = calculateAnalysisScore(latestTest)
-        
-        let currentOverall = (0.35 * motilityScore) + (0.30 * concentrationScore) + (0.15 * morphologyScore) +
-                             (0.10 * dnaScore) + (0.10 * analysisScore)
-
-        let previousTests = Array(testStore.tests.dropFirst())
-        let prevCount = Double(previousTests.count)
-
-        let totalMotility = previousTests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
-        let totalConcentration = previousTests.reduce(0.0) {
-            let conc = $1.spermConcentration ?? 0.0
-            let score = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
-            return $0 + min(score, 100.0)
-        }
-        let totalMorphology = previousTests.reduce(0.0) {
-            let morph = $1.morphologyRate ?? 0.0
-            let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
-            return $0 + min(score, 100.0)
-        }
-        let totalDna = previousTests.reduce(0.0) {
-            let dna = Double($1.dnaFragmentationRisk ?? 0)
-            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
-            return $0 + score
-        }
-        let totalAnalysis = previousTests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
-
-        let previousOverall = (
-            (0.35 * (totalMotility / prevCount)) +
-            (0.30 * (totalConcentration / prevCount)) +
-            (0.15 * (totalMorphology / prevCount)) +
-            (0.10 * (totalDna / prevCount)) +
-            (0.10 * (totalAnalysis / prevCount))
-        )
-
-        if currentOverall > previousOverall { return .up }
-        if currentOverall < previousOverall { return .down }
-        return .none
     }
 }
 
@@ -1025,5 +1072,6 @@ struct DashboardView_Previews: PreviewProvider {
         return DashboardView(selectedTab: .constant(0))
             .environmentObject(testStore)
             .environmentObject(PurchaseModel())
+            .environmentObject(AuthManager())
     }
 }

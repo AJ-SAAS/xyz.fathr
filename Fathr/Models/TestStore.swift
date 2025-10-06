@@ -7,6 +7,7 @@ class TestStore: ObservableObject {
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
     private var authHandle: AuthStateDidChangeListenerHandle?
+    private var challengeListener: ListenerRegistration?
 
     init() {
         print("Initializing TestStore with empty tests")
@@ -17,6 +18,7 @@ class TestStore: ObservableObject {
     deinit {
         print("Removing listeners for TestStore")
         listener?.remove()
+        challengeListener?.remove()
         if let authHandle = authHandle {
             Auth.auth().removeStateDidChangeListener(authHandle)
         }
@@ -28,11 +30,14 @@ class TestStore: ObservableObject {
             if let user = user {
                 print("Auth state changed: User signed in with ID: \(user.uid)")
                 self?.startListeningForTests(userId: user.uid)
+                self?.startListeningForChallengeProgress(userId: user.uid)
             } else {
                 print("Auth state changed: No user signed in")
                 self?.tests = []
                 self?.listener?.remove()
+                self?.challengeListener?.remove()
                 self?.listener = nil
+                self?.challengeListener = nil
             }
         }
     }
@@ -130,6 +135,96 @@ class TestStore: ObservableObject {
                     print("Successfully deleted all tests for user: \(userId)")
                     completion(true)
                 }
+            }
+        }
+    }
+
+    // MARK: - Challenge Progress
+    struct ChallengeProgress: Codable {
+        let startDate: Date?
+        let completionStatus: [Int: String]
+        let fhi: Int
+    }
+
+    func saveChallengeProgress(userId: String, startDate: Date?, completionStatus: [Int: String], fhi: Int, completion: @escaping (Bool) -> Void = { _ in }) {
+        print("Saving challenge progress for user: \(userId), startDate: \(startDate?.description ?? "nil"), completionStatus: \(completionStatus), fhi: \(fhi)")
+        let progress = ChallengeProgress(startDate: startDate, completionStatus: completionStatus, fhi: fhi)
+        let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
+        do {
+            let data = try Firestore.Encoder().encode(progress)
+            print("Encoded data: \(data)")
+            try docRef.setData(from: progress) { error in
+                if let error = error {
+                    print("Error saving challenge progress: \(error.localizedDescription)")
+                    completion(false)
+                } else {
+                    print("Successfully saved challenge progress for user: \(userId)")
+                    completion(true)
+                }
+            }
+        } catch {
+            print("Error encoding challenge progress: \(error.localizedDescription)")
+            completion(false)
+        }
+    }
+
+    func fetchChallengeProgress(userId: String, completion: @escaping (ChallengeProgress?) -> Void) {
+        print("Fetching challenge progress for user: \(userId)")
+        let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
+        docRef.getDocument { document, error in
+            if let error = error {
+                print("Error fetching challenge progress: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            if let document = document, document.exists {
+                do {
+                    let progress = try document.data(as: ChallengeProgress.self)
+                    print("Fetched challenge progress: startDate=\(progress.startDate?.description ?? "none"), fhi=\(progress.fhi)")
+                    completion(progress)
+                } catch {
+                    print("Error decoding challenge progress: \(error.localizedDescription)")
+                    completion(nil)
+                }
+            } else {
+                print("No challenge progress document found for user: \(userId)")
+                completion(nil)
+            }
+        }
+    }
+
+    private func startListeningForChallengeProgress(userId: String) {
+        print("Starting listener for challenge progress for user: \(userId)")
+        let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
+        challengeListener?.remove()
+        challengeListener = docRef.addSnapshotListener { [weak self] document, error in
+            if let error = error {
+                print("Error fetching challenge progress snapshot: \(error.localizedDescription)")
+                return
+            }
+            if let document = document, document.exists {
+                do {
+                    let progress = try document.data(as: ChallengeProgress.self)
+                    print("Challenge progress updated: startDate=\(progress.startDate?.description ?? "none"), fhi=\(progress.fhi)")
+                } catch {
+                    print("Error decoding challenge progress snapshot: \(error.localizedDescription)")
+                }
+            } else {
+                print("Challenge progress document does not exist for user: \(userId)")
+            }
+        }
+    }
+
+    func deleteChallengeProgress(userId: String, completion: @escaping (Bool) -> Void) {
+        print("Deleting challenge progress for user: \(userId)")
+        let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
+        docRef.delete { error in
+            if let error = error {
+                print("Error deleting challenge progress: \(error.localizedDescription)")
+                completion(false)
+            } else {
+                print("Successfully deleted challenge progress")
+                completion(true)
             }
         }
     }

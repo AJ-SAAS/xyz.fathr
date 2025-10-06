@@ -9,9 +9,10 @@ class AuthManager: ObservableObject {
         Auth.auth().currentUser?.uid
     }
     private var authListenerHandle: AuthStateDidChangeListenerHandle?
+    private let testStore: TestStore
 
     init() {
-        // Delay check to ensure Firebase restores session
+        self.testStore = TestStore()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             self.checkAuthState()
             self.authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
@@ -98,25 +99,39 @@ class AuthManager: ObservableObject {
         let userDocRef = db.collection("users").document(user.uid)
 
         print("AuthManager: Deleting Firestore data for user \(user.uid)")
-        userDocRef.delete { error in
-            if let error = error {
-                print("AuthManager: Error deleting Firestore data: \(error.localizedDescription)")
+        testStore.deleteAllTestsForUser(userId: user.uid) { success in
+            if !success {
+                let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to delete tests"])
+                print("AuthManager: Failed to delete tests")
                 completion(error)
                 return
             }
-
-            print("AuthManager: Deleting Firebase user \(user.uid)")
-            user.delete { error in
-                if let error = error {
-                    print("AuthManager: Error deleting Firebase user: \(error.localizedDescription)")
+            self.testStore.deleteChallengeProgress(userId: user.uid) { success in
+                if !success {
+                    let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to delete challenge progress"])
+                    print("AuthManager: Failed to delete challenge progress")
                     completion(error)
                     return
                 }
-
-                self.isSignedIn = false
-                self.errorMessage = nil
-                print("AuthManager: Account deleted successfully")
-                completion(nil)
+                userDocRef.delete { error in
+                    if let error = error {
+                        print("AuthManager: Error deleting Firestore data: \(error.localizedDescription)")
+                        completion(error)
+                        return
+                    }
+                    print("AuthManager: Deleting Firebase user \(user.uid)")
+                    user.delete { error in
+                        if let error = error {
+                            print("AuthManager: Error deleting Firebase user: \(error.localizedDescription)")
+                            completion(error)
+                            return
+                        }
+                        self.isSignedIn = false
+                        self.errorMessage = nil
+                        print("AuthManager: Account deleted successfully")
+                        completion(nil)
+                    }
+                }
             }
         }
     }

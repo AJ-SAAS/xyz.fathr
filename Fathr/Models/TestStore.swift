@@ -4,6 +4,8 @@ import FirebaseFirestore
 
 class TestStore: ObservableObject {
     @Published var tests: [TestData] = []
+    @Published var challengeProgress: ChallengeProgress?
+    
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
     private var authHandle: AuthStateDidChangeListenerHandle?
@@ -24,6 +26,7 @@ class TestStore: ObservableObject {
         }
     }
 
+    // MARK: - Auth Listener
     private func startAuthListener() {
         print("Starting auth state listener")
         authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
@@ -34,6 +37,7 @@ class TestStore: ObservableObject {
             } else {
                 print("Auth state changed: No user signed in")
                 self?.tests = []
+                self?.challengeProgress = nil
                 self?.listener?.remove()
                 self?.challengeListener?.remove()
                 self?.listener = nil
@@ -42,10 +46,11 @@ class TestStore: ObservableObject {
         }
     }
 
+    // MARK: - Tests
     private func startListeningForTests(userId: String) {
         print("Starting listener for tests for user: \(userId)")
         let collectionRef = db.collection("users").document(userId).collection("tests")
-        listener?.remove() // Prevent duplicate listeners
+        listener?.remove()
         listener = collectionRef
             .order(by: "date", descending: true)
             .addSnapshotListener { [weak self] querySnapshot, error in
@@ -76,37 +81,26 @@ class TestStore: ObservableObject {
     }
 
     func addTest(_ test: TestData) {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            print("No user ID, cannot add test")
-            return
-        }
-        print("Adding test for user: \(userId), Date: \(test.date)")
+        guard let userId = Auth.auth().currentUser?.uid else { return }
         let collectionRef = db.collection("users").document(userId).collection("tests")
         do {
-            let documentRef = try collectionRef.addDocument(from: test)
-            print("Successfully added test with ID: \(documentRef.documentID)")
+            _ = try collectionRef.addDocument(from: test)
         } catch {
             print("Error adding test: \(error.localizedDescription)")
         }
     }
 
     func deleteTests(at offsets: IndexSet) {
-        guard let userId = Auth.auth().currentUser?.uid else {
-            print("No user ID, cannot delete tests")
-            return
-        }
-        print("Deleting tests for user: \(userId)")
+        guard let userId = Auth.auth().currentUser?.uid else { return }
         let collectionRef = db.collection("users").document(userId).collection("tests")
         offsets.forEach { index in
             if let testId = tests[index].id {
-                print("Deleting test with ID: \(testId)")
                 collectionRef.document(testId).delete()
             }
         }
     }
-    
+
     func deleteAllTestsForUser(userId: String, completion: @escaping (Bool) -> Void) {
-        print("Deleting all tests for user: \(userId)")
         let collectionRef = db.collection("users").document(userId).collection("tests")
         collectionRef.getDocuments { snapshot, error in
             if let error = error {
@@ -114,118 +108,101 @@ class TestStore: ObservableObject {
                 completion(false)
                 return
             }
-            
-            guard let documents = snapshot?.documents else {
-                print("No tests to delete for user: \(userId)")
-                completion(true)
-                return
-            }
-            
-            print("Found \(documents.count) tests to delete")
+            guard let documents = snapshot?.documents else { completion(true); return }
             let batch = collectionRef.firestore.batch()
-            for document in documents {
-                batch.deleteDocument(document.reference)
-            }
-            
+            for doc in documents { batch.deleteDocument(doc.reference) }
             batch.commit { error in
-                if let error = error {
-                    print("Error deleting tests: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    print("Successfully deleted all tests for user: \(userId)")
-                    completion(true)
-                }
+                completion(error == nil)
             }
         }
     }
 
-    // MARK: - Challenge Progress
-    struct ChallengeProgress: Codable {
-        let startDate: Date?
-        let completionStatus: [Int: String]
-        let fhi: Int
+    // MARK: - Challenge Progress Models
+    struct ChallengeTaskProgress: Codable {
+        var completed: Bool
     }
 
-    func saveChallengeProgress(userId: String, startDate: Date?, completionStatus: [Int: String], fhi: Int, completion: @escaping (Bool) -> Void = { _ in }) {
-        print("Saving challenge progress for user: \(userId), startDate: \(startDate?.description ?? "nil"), completionStatus: \(completionStatus), fhi: \(fhi)")
-        let progress = ChallengeProgress(startDate: startDate, completionStatus: completionStatus, fhi: fhi)
+    struct ChallengeDayProgress: Codable {
+        var tasks: [ChallengeTaskProgress]
+        var mood: Int?
+        var energy: Int?
+        var journalEntry: String?
+    }
+
+    struct ChallengeProgress: Codable {
+        var startDate: Date?
+        var days: [Int: ChallengeDayProgress]
+        var fhi: Int
+        var hardcoreMode: Bool
+    }
+
+    // MARK: - Challenge CRUD
+    func saveChallengeProgress(userId: String, completion: @escaping (Bool) -> Void = { _ in }) {
+        guard let progress = challengeProgress else { completion(false); return }
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         do {
-            let data = try Firestore.Encoder().encode(progress)
-            print("Encoded data: \(data)")
             try docRef.setData(from: progress) { error in
-                if let error = error {
-                    print("Error saving challenge progress: \(error.localizedDescription)")
-                    completion(false)
-                } else {
-                    print("Successfully saved challenge progress for user: \(userId)")
-                    completion(true)
-                }
+                if let error = error { print("Error saving challenge: \(error)"); completion(false) }
+                else { completion(true) }
             }
         } catch {
-            print("Error encoding challenge progress: \(error.localizedDescription)")
+            print("Error encoding challenge progress: \(error)")
             completion(false)
         }
     }
 
     func fetchChallengeProgress(userId: String, completion: @escaping (ChallengeProgress?) -> Void) {
-        print("Fetching challenge progress for user: \(userId)")
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         docRef.getDocument { document, error in
             if let error = error {
-                print("Error fetching challenge progress: \(error.localizedDescription)")
+                print("Error fetching challenge progress: \(error)")
                 completion(nil)
                 return
             }
             if let document = document, document.exists {
                 do {
                     let progress = try document.data(as: ChallengeProgress.self)
-                    print("Fetched challenge progress: startDate=\(progress.startDate?.description ?? "none"), fhi=\(progress.fhi)")
+                    DispatchQueue.main.async { self.challengeProgress = progress }
                     completion(progress)
                 } catch {
-                    print("Error decoding challenge progress: \(error.localizedDescription)")
+                    print("Error decoding challenge progress: \(error)")
                     completion(nil)
                 }
             } else {
-                print("No challenge progress document found for user: \(userId)")
                 completion(nil)
             }
         }
     }
 
     private func startListeningForChallengeProgress(userId: String) {
-        print("Starting listener for challenge progress for user: \(userId)")
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         challengeListener?.remove()
         challengeListener = docRef.addSnapshotListener { [weak self] document, error in
-            if let error = error {
-                print("Error fetching challenge progress snapshot: \(error.localizedDescription)")
-                return
-            }
             if let document = document, document.exists {
                 do {
                     let progress = try document.data(as: ChallengeProgress.self)
-                    print("Challenge progress updated: startDate=\(progress.startDate?.description ?? "none"), fhi=\(progress.fhi)")
+                    DispatchQueue.main.async { self?.challengeProgress = progress }
                 } catch {
-                    print("Error decoding challenge progress snapshot: \(error.localizedDescription)")
+                    print("Error decoding challenge progress snapshot: \(error)")
                 }
-            } else {
-                print("Challenge progress document does not exist for user: \(userId)")
             }
         }
     }
 
     func deleteChallengeProgress(userId: String, completion: @escaping (Bool) -> Void) {
-        print("Deleting challenge progress for user: \(userId)")
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         docRef.delete { error in
-            if let error = error {
-                print("Error deleting challenge progress: \(error.localizedDescription)")
-                completion(false)
-            } else {
-                print("Successfully deleted challenge progress")
-                completion(true)
-            }
+            completion(error == nil)
+            if error == nil { self.challengeProgress = nil }
         }
+    }
+
+    // MARK: - Helper: FHI Calculation
+    func updateFHI() {
+        guard let progress = challengeProgress else { return }
+        let allTasks = progress.days.values.flatMap { $0.tasks }
+        let completedCount = allTasks.filter { $0.completed }.count
+        let totalCount = allTasks.count
+        challengeProgress?.fhi = totalCount > 0 ? Int(Double(completedCount) / Double(totalCount) * 100) : 0
     }
 }

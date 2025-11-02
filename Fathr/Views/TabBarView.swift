@@ -15,6 +15,7 @@ struct TabBarView: View {
             TabView(selection: Binding(
                 get: { selectedTab },
                 set: { newValue in
+                    // Keep your paywall logic
                     if isPaywallDisabledForTesting || newValue != 1 || purchaseModel.isSubscribed {
                         selectedTab = newValue
                     } else {
@@ -22,6 +23,7 @@ struct TabBarView: View {
                     }
                 }
             )) {
+                // Home Tab
                 DashboardView(selectedTab: $selectedTab)
                     .tabItem {
                         Label("Home", systemImage: "house")
@@ -32,6 +34,7 @@ struct TabBarView: View {
                     .tag(0)
                     .padding(.bottom, geometry.size.width > 600 ? 20 : 10)
 
+                // Track Tab
                 TrackView()
                     .tabItem {
                         Label("Track", systemImage: "plus.circle")
@@ -42,6 +45,18 @@ struct TabBarView: View {
                     .tag(1)
                     .padding(.bottom, geometry.size.width > 600 ? 20 : 10)
 
+                // AI Chat Tab
+                AIChatView()
+                    .tabItem {
+                        Label("AI Chat", systemImage: "message")
+                            .font(.system(.body, design: .default, weight: .regular))
+                    }
+                    .environmentObject(testStore)     // optional, remove if not needed
+                    .environmentObject(purchaseModel) // optional
+                    .tag(2)
+                    .padding(.bottom, geometry.size.width > 600 ? 20 : 10)
+
+                // Settings Tab
                 SettingsView()
                     .tabItem {
                         Label("More", systemImage: "gear")
@@ -49,7 +64,7 @@ struct TabBarView: View {
                     }
                     .environmentObject(testStore)
                     .environmentObject(purchaseModel)
-                    .tag(2)
+                    .tag(3)
                     .padding(.bottom, geometry.size.width > 600 ? 20 : 10)
             }
             .sheet(isPresented: $showPaywall) {

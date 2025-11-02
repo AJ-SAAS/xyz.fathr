@@ -1,132 +1,49 @@
 import SwiftUI
 import FirebaseAuth
 
-class ChallengeStore: ObservableObject {
-    @Published var completionStatus: [Int: String] = [:]
-    @Published var fhi: Int = 0
-    @Published var tasks: [(task: String, tip: String)] = [
-        (task: "Track your baseline sperm test result in the app", tip: "Understanding where you start helps track progress over time."),
-        (task: "Drink at least 2.5L water", tip: "Hydration is key for semen volume and sperm motility."),
-        (task: "Eat 1 serving leafy greens + 1 serving nuts", tip: "Antioxidants support sperm DNA integrity."),
-        (task: "Avoid alcohol and processed foods today", tip: "Alcohol and processed sugar damage sperm quality."),
-        (task: "20–30 min moderate exercise (walk, bike, gym)", tip: "Exercise improves circulation, hormone balance, and sperm count."),
-        (task: "Sleep 7–8 hours tonight", tip: "Poor sleep lowers testosterone and sperm quality."),
-        (task: "10-min guided breathing or meditation", tip: "Stress reduction improves sperm motility and overall health.")
-        // Add remaining tasks (Days 8–74) later
-    ]
-    private let testStore: TestStore
-    private let userId: String?
-
-    init(testStore: TestStore, userId: String?) {
-        self.testStore = testStore
-        self.userId = userId
-        loadProgress()
-    }
-
-    func currentDay(for startDate: Date) -> Int {
-        let daysSinceStart = Calendar.current.dateComponents([.day], from: startDate, to: Date()).day ?? 0
-        return min(max(daysSinceStart + 1, 1), 74)
-    }
-
-    func markDayCompleted(day: Int) {
-        completionStatus[day] = "completed"
-        updateFHI()
-        saveProgress()
-    }
-
-    func markDayMissed(day: Int) {
-        completionStatus[day] = "missed"
-        updateFHI()
-        saveProgress()
-    }
-
-    func isDayCompleted(day: Int) -> Bool {
-        return completionStatus[day] == "completed"
-    }
-
-    private func updateFHI() {
-        let completedDays = completionStatus.values.filter { $0 == "completed" }.count
-        fhi = min(Int(Double(completedDays) / 74.0 * 100), 100)
-    }
-
-    private func saveProgress() {
-        guard let userId = userId else {
-            print("ChallengeStore: No user ID, cannot save progress")
-            return
-        }
-        testStore.saveChallengeProgress(
-            userId: userId,
-            startDate: nil, // Only set on first save
-            completionStatus: completionStatus,
-            fhi: fhi
-        ) { success in
-            print("ChallengeStore: Save progress \(success ? "succeeded" : "failed")")
-        }
-    }
-
-    func loadProgress() {
-        guard let userId = userId else {
-            print("ChallengeStore: No user ID, cannot load progress")
-            return
-        }
-        testStore.fetchChallengeProgress(userId: userId) { progress in
-            if let progress = progress {
-                DispatchQueue.main.async {
-                    self.completionStatus = progress.completionStatus
-                    self.fhi = progress.fhi
-                    print("ChallengeStore: Loaded progress - completionStatus: \(self.completionStatus), fhi: \(self.fhi)")
-                }
-            } else {
-                print("ChallengeStore: No progress found")
-            }
-        }
-    }
-}
-
 struct ChallengeView: View {
     let startDate: Date
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var authManager: AuthManager
-    @StateObject private var challengeStore: ChallengeStore
     @State private var currentDay: Int
     @Environment(\.dismiss) private var dismiss
+    @State private var journalText: String = "" // Temporary state for journal input
+    @State private var isJournalSubmitted: Bool = false // Tracks if journal is submitted
+
+    // Define daily tasks aligned with Core Rules
+    private let dailyTasks: [(category: String, task: String, tip: String)] = [
+        // Nutrition
+        (category: "Nutrition", task: "Drink 3L of water", tip: "Hydration supports semen volume and optimal testicular function, key for sperm production."),
+        (category: "Nutrition", task: "Eat 1 cup of spinach or kale", tip: "Leafy greens provide folate, supporting healthy sperm DNA and reducing abnormalities."),
+        // Supplements
+        (category: "Supplements", task: "Take a zinc supplement (15–30mg)", tip: "Zinc is critical for sperm motility and testosterone production."),
+        // Heat Avoidance
+        (category: "Heat Avoidance", task: "Wear loose underwear today", tip: "Loose clothing keeps testes cooler, optimizing sperm production."),
+        // Exercise
+        (category: "Exercise", task: "Do 45 min of exercise (e.g., walk, gym)", tip: "Moderate exercise boosts testosterone and blood flow, enhancing sperm quality."),
+        // Sleep & Recovery
+        (category: "Sleep", task: "Sleep 7–8 hours tonight", tip: "Quality sleep regulates testosterone, crucial for the 74-day sperm renewal cycle."),
+        // Mental & Sexual Discipline
+        (category: "Mental Discipline", task: "Write a journal entry (below)", tip: "Journaling reduces stress, lowering cortisol that can harm sperm health.")
+    ]
 
     init(startDate: Date, testStore: TestStore) {
         self.startDate = startDate
         let daysSinceStart = Calendar.current.dateComponents([.day], from: startDate, to: Date()).day ?? 0
         self._currentDay = State(initialValue: min(max(daysSinceStart + 1, 1), 74))
-        self._challengeStore = StateObject(wrappedValue: ChallengeStore(testStore: testStore, userId: Auth.auth().currentUser?.uid))
     }
 
     var body: some View {
         NavigationStack {
             VStack {
-                if currentDay == 74 && challengeStore.isDayCompleted(day: 74) {
-                    ChallengeCompletionView(challengeStore: challengeStore)
+                if isChallengeCompleted() {
+                    ChallengeCompletionView()
                         .environmentObject(testStore)
-                } else if [7, 14, 21, 28, 35, 42, 49, 56, 63, 70].contains(currentDay) && challengeStore.isDayCompleted(day: currentDay) {
-                    WeeklyDashboardView(day: currentDay, challengeStore: challengeStore)
+                } else if isWeeklyDashboardDay() {
+                    WeeklyDashboardView(day: currentDay)
+                        .environmentObject(testStore)
                 } else {
-                    TabView(selection: $currentDay) {
-                        ForEach(1...min(currentDay, 74), id: \.self) { day in
-                            DailyChallengeCardView(
-                                day: day,
-                                task: challengeStore.tasks[safe: day - 1] ?? (task: "No task available", tip: "Check back later"),
-                                completionStatus: challengeStore.completionStatus[day] ?? "none",
-                                onComplete: { challengeStore.markDayCompleted(day: day) },
-                                onMissed: { challengeStore.markDayMissed(day: day) },
-                                fhi: challengeStore.fhi
-                            )
-                            .tag(day)
-                        }
-                    }
-                    .tabViewStyle(PageTabViewStyle())
-                    .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-                    .onChange(of: currentDay) { newValue, _ in
-                        if newValue > challengeStore.currentDay(for: startDate) {
-                            currentDay = challengeStore.currentDay(for: startDate)
-                        }
-                    }
+                    dailyDashboard()
                 }
             }
             .navigationTitle("74-Day Fertility Challenge")
@@ -138,131 +55,172 @@ struct ChallengeView: View {
             }
         }
         .onAppear {
-            challengeStore.loadProgress()
-            print("ChallengeView: Loaded with startDate: \(startDate), currentDay: \(currentDay)")
+            print("ChallengeView loaded with currentDay: \(currentDay)")
+            // Load existing journal entry for the current day
+            if let dayProgress = testStore.challengeProgress?.days[currentDay] {
+                journalText = dayProgress.journalEntry ?? ""
+                isJournalSubmitted = dayProgress.journalEntry != nil
+            }
         }
     }
-}
 
-// Array extension to safely access elements
-extension Array {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}
+    // MARK: - Daily Dashboard
+    @ViewBuilder
+    private func dailyDashboard() -> some View {
+        if let dayProgress = testStore.challengeProgress?.days[currentDay] {
+            ScrollView {
+                VStack(spacing: 20) {
+                    Text("Day \(currentDay)/74")
+                        .font(.title.bold())
 
-struct DailyChallengeCardView: View {
-    let day: Int
-    let task: (task: String, tip: String)
-    let completionStatus: String
-    let onComplete: () -> Void
-    let onMissed: () -> Void
-    let fhi: Int
+                    ProgressView(value: Double(testStore.challengeProgress?.fhi ?? 0), total: 100)
+                        .progressViewStyle(.linear)
+                        .tint(.green)
+                        .padding(.horizontal)
 
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Day \(day)/74")
-                .font(.title)
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.2), lineWidth: 10)
-                    .frame(width: 100, height: 100)
-                Circle()
-                    .trim(from: 0, to: CGFloat(day) / 74.0)
-                    .stroke(Color.blue, lineWidth: 10)
-                    .frame(width: 100, height: 100)
-                    .rotationEffect(.degrees(-90))
-            }
-            Text(task.task)
-                .font(.headline)
-                .fontDesign(.rounded)
-                .multilineTextAlignment(.center)
-            Text("Why it Matters: \(task.tip)")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            if completionStatus == "none" {
-                HStack(spacing: 16) {
-                    Button("Completed") {
-                        onComplete()
+                    ForEach(dailyTasks.indices, id: \.self) { index in
+                        HStack(alignment: .top, spacing: 12) {
+                            Button(action: {
+                                toggleTask(index: index)
+                            }) {
+                                Image(systemName: dayProgress.tasks[index].completed ? "checkmark.circle.fill" : "circle")
+                                    .foregroundColor(dayProgress.tasks[index].completed ? .green : .gray)
+                                    .font(.title2)
+                            }
+                            .accessibilityLabel(dayProgress.tasks[index].completed ? "Unmark task" : "Mark task as completed")
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(dailyTasks[index].category)
+                                    .font(.caption.bold())
+                                    .foregroundColor(.secondary)
+                                Text(dailyTasks[index].task)
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                Text(dailyTasks[index].tip)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 4)
                     }
-                    .font(.subheadline.bold())
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(10)
-                    Button("Missed") {
-                        onMissed()
+
+                    VStack(spacing: 10) {
+                        VStack {
+                            Text("Mood: \(dayProgress.mood ?? 5)/10")
+                                .font(.body)
+                            Slider(value: Binding(
+                                get: { Double(dayProgress.mood ?? 5) },
+                                set: { testStore.challengeProgress?.days[currentDay]?.mood = Int($0) }
+                            ), in: 0...10, step: 1)
+                            .tint(.green)
+                        }
+
+                        VStack {
+                            Text("Energy: \(dayProgress.energy ?? 5)/10")
+                                .font(.body)
+                            Slider(value: Binding(
+                                get: { Double(dayProgress.energy ?? 5) },
+                                set: { testStore.challengeProgress?.days[currentDay]?.energy = Int($0) }
+                            ), in: 0...10, step: 1)
+                            .tint(.green)
+                        }
+
+                        VStack(spacing: 8) {
+                            Text("Journal Entry")
+                                .font(.body.bold())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            ZStack(alignment: .topLeading) {
+                                if journalText.isEmpty && !isJournalSubmitted {
+                                    Text("Today I invested in my future family by…")
+                                        .font(.body)
+                                        .foregroundColor(.gray.opacity(0.5))
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 5)
+                                }
+                                TextEditor(text: $journalText)
+                                    .frame(height: 100)
+                                    .padding(4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    )
+                            }
+                            .padding(.horizontal)
+
+                            Button(action: {
+                                submitJournal()
+                            }) {
+                                Text(isJournalSubmitted ? "Journal Submitted" : "Submit Journal")
+                                    .bold()
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(isJournalSubmitted ? Color.gray : Color.green)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                            }
+                            .disabled(isJournalSubmitted)
+                            .padding(.horizontal)
+                        }
                     }
-                    .font(.subheadline.bold())
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.red)
-                    .cornerRadius(10)
+                    .padding(.vertical)
                 }
-            } else {
-                Text(completionStatus == "completed" ? "Completed ✅" : "Missed ❌")
-                    .font(.subheadline.bold())
-                    .foregroundColor(completionStatus == "completed" ? .green : .red)
+                .padding()
             }
-            Text("Fertility Habits Index: \(fhi)/100")
-                .font(.subheadline)
-                .fontDesign(.rounded)
+        } else {
+            Text("Loading day \(currentDay)...")
         }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(15)
-        .shadow(radius: 5)
-        .padding(.horizontal)
+    }
+
+    private func toggleTask(index: Int) {
+        guard var dayProgress = testStore.challengeProgress?.days[currentDay] else { return }
+        dayProgress.tasks[index].completed.toggle()
+        testStore.challengeProgress?.days[currentDay] = dayProgress
+        testStore.updateFHI()
+        if let userId = authManager.currentUserID {
+            testStore.saveChallengeProgress(userId: userId) { success in
+                if !success {
+                    print("ChallengeView: Failed to save progress")
+                }
+            }
+        }
+    }
+
+    private func submitJournal() {
+        guard var dayProgress = testStore.challengeProgress?.days[currentDay] else { return }
+        dayProgress.journalEntry = journalText.isEmpty ? nil : journalText
+        testStore.challengeProgress?.days[currentDay] = dayProgress
+        if let userId = authManager.currentUserID {
+            testStore.saveChallengeProgress(userId: userId) { success in
+                DispatchQueue.main.async {
+                    if success {
+                        print("ChallengeView: Journal saved successfully")
+                        isJournalSubmitted = true
+                    } else {
+                        print("ChallengeView: Failed to save journal")
+                    }
+                }
+            }
+        }
+    }
+
+    private func isChallengeCompleted() -> Bool {
+        return currentDay == 74 && (testStore.challengeProgress?.days[74]?.tasks.allSatisfy { $0.completed } ?? false)
+    }
+
+    private func isWeeklyDashboardDay() -> Bool {
+        return [7, 14, 21, 28, 35, 42, 49, 56, 63, 70].contains(currentDay)
+            && (testStore.challengeProgress?.days[currentDay]?.tasks.allSatisfy { $0.completed } ?? false)
     }
 }
 
-struct WeeklyDashboardView: View {
-    let day: Int
-    @ObservedObject var challengeStore: ChallengeStore
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Week \(day/7) Complete!")
-                .font(.title)
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
-            Text("Fertility Habits Index: \(challengeStore.fhi)/100")
-                .font(.headline)
-            Rectangle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(height: 100)
-                .overlay(Text("FHI Trend Graph Placeholder"))
-            Text("Top Wins: \(challengeStore.completionStatus.filter { $0.value == "completed" }.count) tasks completed")
-                .font(.subheadline)
-            Text("Prediction: Your habits could improve sperm motility by ~10–20%. Keep it up!")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-            Button("Continue to Day \(day + 1)") {
-                // Handled by parent view
-            }
-            .font(.subheadline.bold())
-            .foregroundColor(.white)
-            .padding()
-            .background(Color.blue)
-            .cornerRadius(10)
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(15)
-        .shadow(radius: 5)
-        .padding(.horizontal)
-    }
-}
+// MARK: - Placeholder Views
 
 struct ChallengeCompletionView: View {
-    @ObservedObject var challengeStore: ChallengeStore
     @EnvironmentObject var testStore: TestStore
-
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "trophy.fill")
@@ -270,14 +228,12 @@ struct ChallengeCompletionView: View {
                 .scaledToFit()
                 .frame(width: 100)
                 .foregroundColor(.yellow)
-            Text("Congratulations!")
-                .font(.title)
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
-            Text("You completed the 74-Day Fertility Upgrade Challenge!")
+            Text("Challenge Completed!")
+                .font(.title.bold())
+            Text("Congratulations on completing the 74-Day Fertility Challenge!")
                 .font(.headline)
                 .multilineTextAlignment(.center)
-            Text("Fertility Habits Index: \(challengeStore.fhi)/100")
+            Text("Fertility Habits Index: \(testStore.challengeProgress?.fhi ?? 0)/100")
                 .font(.subheadline)
             Rectangle()
                 .fill(Color.gray.opacity(0.2))
@@ -292,18 +248,54 @@ struct ChallengeCompletionView: View {
                         .font(.subheadline.bold())
                         .foregroundColor(.white)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.green)
                         .cornerRadius(10)
                 }
                 Button("Share Achievement") {
-                    // Implement sharing logic
+                    // TODO: Implement sharing logic
                 }
                 .font(.subheadline.bold())
                 .foregroundColor(.white)
                 .padding()
-                .background(Color.blue)
+                .background(Color.green)
                 .cornerRadius(10)
             }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(15)
+        .shadow(radius: 5)
+        .padding(.horizontal)
+    }
+}
+
+struct WeeklyDashboardView: View {
+    @EnvironmentObject var testStore: TestStore
+    let day: Int
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Week \(day/7) Complete!")
+                .font(.title.bold())
+            Text("Fertility Habits Index: \(testStore.challengeProgress?.fhi ?? 0)/100")
+                .font(.headline)
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(height: 100)
+                .overlay(Text("FHI Trend Graph Placeholder"))
+            Text("Top Wins: \(testStore.challengeProgress?.days.values.flatMap { $0.tasks }.filter { $0.completed }.count ?? 0) tasks completed")
+                .font(.subheadline)
+            Text("Prediction: Your habits could improve sperm motility by ~10–20%. Keep it up!")
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .multilineTextAlignment(.center)
+            Button("Continue to Day \(day + 1)") {
+                // Handled by parent view
+            }
+            .font(.subheadline.bold())
+            .foregroundColor(.white)
+            .padding()
+            .background(Color.green)
+            .cornerRadius(10)
         }
         .padding()
         .background(Color.white)

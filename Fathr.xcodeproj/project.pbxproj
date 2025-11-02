@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		924DBCAB2DE576EC00813435 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 924DBCAA2DE576EC00813435 /* RevenueCat */; };
 		924DBCAD2DE576EC00813435 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 924DBCAC2DE576EC00813435 /* RevenueCatUI */; };
+		9286EACF2EAF828800522E89 /* FirebaseFunctions in Frameworks */ = {isa = PBXBuildFile; productRef = 9286EACE2EAF828800522E89 /* FirebaseFunctions */; };
 		9289791C2DE56ED70031FB98 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9289791B2DE56ED70031FB98 /* RevenueCatUI */; };
 		929367D32DD8764D005CB80C /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 929367D22DD8764D005CB80C /* FirebaseAnalytics */; };
 		929367D52DD8764D005CB80C /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 929367D42DD8764D005CB80C /* FirebaseAuth */; };
@@ -86,6 +87,7 @@
 				929367E22DD876AC005CB80C /* RevenueCat in Frameworks */,
 				9289791C2DE56ED70031FB98 /* RevenueCatUI in Frameworks */,
 				929367DF2DD8764D005CB80C /* FirebaseStorage in Frameworks */,
+				9286EACF2EAF828800522E89 /* FirebaseFunctions in Frameworks */,
 				929367D52DD8764D005CB80C /* FirebaseAuth in Frameworks */,
 				929367DD2DD8764D005CB80C /* FirebaseFirestore in Frameworks */,
 			);
@@ -167,6 +169,7 @@
 				929367DE2DD8764D005CB80C /* FirebaseStorage */,
 				929367E12DD876AC005CB80C /* RevenueCat */,
 				9289791B2DE56ED70031FB98 /* RevenueCatUI */,
+				9286EACE2EAF828800522E89 /* FirebaseFunctions */,
 			);
 			productName = Fathr;
 			productReference = 9293674E2DD864A9005CB80C /* Fathr.app */;
@@ -228,7 +231,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1630;
-				LastUpgradeCheck = 1630;
+				LastUpgradeCheck = 2600;
 				ORGANIZATIONNAME = Fathr;
 				TargetAttributes = {
 					9293674D2DD864A9005CB80C = {
@@ -391,6 +394,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -449,6 +453,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -678,6 +683,11 @@
 		924DBCAC2DE576EC00813435 /* RevenueCatUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RevenueCatUI;
+		};
+		9286EACE2EAF828800522E89 /* FirebaseFunctions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 929367D12DD8764D005CB80C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFunctions;
 		};
 		9289791B2DE56ED70031FB98 /* RevenueCatUI */ = {
 			isa = XCSwiftPackageProductDependency;

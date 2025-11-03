@@ -3,6 +3,7 @@ import SwiftUI
 struct AIChatView: View {
     @StateObject private var viewModel = AIChatViewModel()
     @FocusState private var isInputFocused: Bool
+    @State private var showDisclaimerPopup = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -13,8 +14,43 @@ struct AIChatView: View {
         }
         .background(Color.white.ignoresSafeArea())
         .navigationTitle("")
+        .onAppear {
+            if viewModel.messages.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    viewModel.isLoading = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {  // FIXED: DispatchQueue
+                    let welcome = """
+                    Hi! I’m your dedicated Fathr Wellness Coach.
+
+                    I can help you with:
+                    • Understand sperm test results (motility, count, etc.)
+                    • Boost chances with simple diet & lifestyle tweaks
+                    • Lifestyle & nutrition ideas
+                    • Motivation & partner support
+
+                    General tips only — talk to your doctor.
+
+                    What’s on your mind?
+                    """
+                    viewModel.messages.append(AIChatViewModel.Message(text: welcome, isUser: false))
+                    viewModel.isLoading = false
+                }
+            }
+        }
+        .alert("Important", isPresented: $showDisclaimerPopup) {
+            Button("Got it") {
+                UserDefaults.standard.set(true, forKey: "DisclaimerAccepted")
+            }
+        } message: {
+            Text("I am **not a doctor**. I provide **general wellness education only**.\n\n• No medical advice\n• No diagnosis\n• No treatment\n\nAlways consult a healthcare professional.")
+        }
+        .onAppear {
+            let accepted = UserDefaults.standard.bool(forKey: "DisclaimerAccepted")
+            showDisclaimerPopup = !accepted
+        }
     }
-    
+
     // MARK: - Top Bar
     private var topBar: some View {
         HStack {
@@ -43,17 +79,33 @@ struct AIChatView: View {
         .padding(.vertical, 10)
         .background(Color.white)
     }
-    
-    // MARK: - Chat Scroll View
+
+    // MARK: - Chat Scroll View (with pinned disclaimer)
     private var chatScrollView: some View {
         ScrollViewReader { scrollViewProxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
+                    // PINNED DISCLAIMER — Always at top
+                    HStack {
+                        Image(systemName: "exclamationmark.shield")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                        Text("I am **not a doctor**. This is **general wellness education only**. Always consult a healthcare professional.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                    .id("pinnedDisclaimer")
+
+                    // Chat messages
                     ForEach(viewModel.messages) { message in
                         ChatMessageView(message: message)
                             .id(message.id)
                     }
-                    
+
                     if viewModel.isLoading {
                         HStack(alignment: .top, spacing: 8) {
                             Image("wellnesscoach")
@@ -68,8 +120,7 @@ struct AIChatView: View {
                         .id("typingIndicator")
                     }
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .padding(.bottom, 8)
             }
             .onChange(of: viewModel.messages.count) { _ in
                 withAnimation {
@@ -90,7 +141,7 @@ struct AIChatView: View {
             .onTapGesture { isInputFocused = false }
         }
     }
-    
+
     // MARK: - Input Bar
     private var inputBar: some View {
         HStack(alignment: .center, spacing: 8) {
@@ -107,7 +158,6 @@ struct AIChatView: View {
                 .padding(.horizontal)
                 .focused($isInputFocused)
             
-            // FIXED: No Task, no await — just call sendMessage()
             Button {
                 viewModel.sendMessage()
                 isInputFocused = false
@@ -127,10 +177,11 @@ struct AIChatView: View {
     }
 }
 
-// MARK: - Single Chat Message View
+// MARK: - Single Chat Message View (NO repeated disclaimer)
 struct ChatMessageView: View {
     let message: AIChatViewModel.Message
-    
+    @State private var showReport = false
+
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
             if message.isUser {
@@ -150,6 +201,7 @@ struct ChatMessageView: View {
                     .scaledToFit()
                     .frame(width: 30, height: 30)
                     .clipShape(Circle())
+                
                 VStack(alignment: .leading, spacing: 4) {
                     Text(message.text)
                         .font(.system(size: 17))
@@ -158,10 +210,33 @@ struct ChatMessageView: View {
                         .cornerRadius(12)
                         .foregroundColor(.black)
                         .frame(maxWidth: 250, alignment: .leading)
+                        .onTapGesture {
+                            let impact = UIImpactFeedbackGenerator(style: .light)
+                            impact.impactOccurred()
+                            withAnimation { showReport.toggle() }
+                        }
+
+                    if showReport {
+                        HStack {
+                            Button("Report") {
+                                print("REPORT: \(message.text)")
+                                showReport = false
+                            }
+                            .font(.caption)
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                            Spacer()
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                 }
                 Spacer()
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: showReport)
     }
 }
 
@@ -170,7 +245,7 @@ struct TypingIndicator: View {
     @State private var dotOpacity1: Double = 0.3
     @State private var dotOpacity2: Double = 0.3
     @State private var dotOpacity3: Double = 0.3
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Circle().frame(width: 8, height: 8).foregroundColor(.blue).opacity(dotOpacity1)

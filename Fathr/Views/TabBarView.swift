@@ -48,7 +48,7 @@ struct TabBarView: View {
                 // AI Chat Tab
                 AIChatView()
                     .tabItem {
-                        Label("AI Chat", systemImage: "message")
+                        Label("Coach", systemImage: "message")
                             .font(.system(.body, design: .default, weight: .regular))
                     }
                     .environmentObject(testStore)     // optional, remove if not needed

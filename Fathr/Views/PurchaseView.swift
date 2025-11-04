@@ -1,19 +1,54 @@
 import SwiftUI
 import RevenueCat
 
+// MARK: - Color Hex Extension
+extension Color {
+    init(_ hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3:
+            (a, r, g, b) = (255,
+                            (int >> 8) * 17,
+                            (int >> 4 & 0xF) * 17,
+                            (int & 0xF) * 17)
+        case 6:
+            (a, r, g, b) = (255,
+                            int >> 16,
+                            int >> 8 & 0xFF,
+                            int & 0xFF)
+        case 8:
+            (a, r, g, b) = (int >> 24,
+                            int >> 16 & 0xFF,
+                            int >> 8 & 0xFF,
+                            int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+
+        self.init(.sRGB,
+                  red: Double(r) / 255,
+                  green: Double(g) / 255,
+                  blue: Double(b) / 255,
+                  opacity: Double(a) / 255)
+    }
+}
+
 struct PurchaseView: View {
     @Binding var isPresented: Bool
     @ObservedObject var purchaseModel: PurchaseModel
     @State private var isPurchasing: Bool = false
     @State private var selectedPackage: Package?
     @State private var errorMessage: String?
-    @State private var showCloseButton: Bool = false
+    @State private var showCloseButton: Bool = false // ✅ added
 
-    private let fathrGreen = Color(fathrHex: "#2ECC71")
+    private let fathrGreen = Color("#2ECC71")
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 Image("fathr-blue-bg-2")
                     .resizable()
                     .scaledToFill()
@@ -26,7 +61,7 @@ struct PurchaseView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: min(geometry.size.width * 0.45, 230))
-                            .padding(.top, 40)
+                            .padding(.top, 60)
 
                         Text("Unlock the full experience and boost your chances of growing your family.")
                             .font(.custom("SFProDisplay-Black", size: 17))
@@ -107,7 +142,7 @@ struct PurchaseView: View {
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: min(geometry.size.width * 0.85, 400))
-                            .padding(.vertical, 20) // Slightly more top/bottom padding
+                            .padding(.vertical, 20)
                             .background(selectedPackage == nil || isPurchasing ? Color.gray : fathrGreen)
                             .cornerRadius(12)
                             .shadow(color: fathrGreen.opacity(0.4), radius: 10, x: 0, y: 4)
@@ -115,13 +150,11 @@ struct PurchaseView: View {
                         .disabled(selectedPackage == nil || isPurchasing)
                         .padding(.top, 10)
 
-                        // Trial info text
                         Text("3-day trial, cancel anytime.")
                             .font(.system(size: 15))
                             .foregroundColor(.white)
                             .padding(.top, 8)
 
-                        // Footer links
                         HStack(spacing: 18) {
                             Button("Restore Purchases") {
                                 isPurchasing = true
@@ -132,7 +165,7 @@ struct PurchaseView: View {
                                 }
                             }
                             .font(.caption)
-                            .foregroundColor(Color.white.opacity(0.7)) // lighter grey
+                            .foregroundColor(Color.white.opacity(0.7))
 
                             Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                                 .font(.caption)
@@ -146,20 +179,37 @@ struct PurchaseView: View {
                     }
                     .frame(height: geometry.size.height * 0.55)
                 }
-                .onAppear {
-                    Task {
-                        await purchaseModel.fetchOfferings()
-                        if let offering = purchaseModel.currentOffering {
-                            selectedPackage = offering.package(identifier: "weekly_pro_trial")
-                        }
+
+                // ✅ X Close Button (appears after 2s, top-left)
+                if showCloseButton {
+                    Button(action: { isPresented = false }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white) // <-- changed to white
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle()
+                                    .fill(Color(white: 0.85).opacity(0.5)) // 50% transparent light grey background
+                            )
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                        withAnimation { showCloseButton = true }
+                    .padding(.top, 30) // closer to top
+                    .padding(.leading, 16) // closer to left
+                    .transition(.scale.combined(with: .opacity))
+                    .animation(.easeInOut(duration: 0.35), value: showCloseButton)
+                }
+            }
+            .onAppear {
+                Task {
+                    await purchaseModel.fetchOfferings()
+                    if let offering = purchaseModel.currentOffering {
+                        selectedPackage = offering.package(identifier: "weekly_pro_trial")
                     }
+                    try? await Task.sleep(nanoseconds: 2_000_000_000) // 2s delay
+                    withAnimation { showCloseButton = true }
                 }
-                .onChange(of: purchaseModel.isSubscribed) { _, newValue in
-                    if newValue { isPresented = false }
-                }
+            }
+            .onChange(of: purchaseModel.isSubscribed) { _, newValue in
+                if newValue { isPresented = false }
             }
         }
     }
@@ -177,6 +227,22 @@ struct PackageButton: View {
     var body: some View {
         Button(action: action) {
             HStack {
+                // ✅ Checkmark
+                if isSelected {
+                    ZStack {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 22, height: 22)
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.white)
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                } else {
+                    Circle()
+                        .stroke(Color.white.opacity(0.4), lineWidth: 1.2)
+                        .frame(width: 22, height: 22)
+                }
+
                 Text("\(title) - \(leftPrice)")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.white)
@@ -185,9 +251,9 @@ struct PackageButton: View {
 
                 Text(rightPrice)
                     .font(.system(size: 14))
-                    .foregroundColor(Color.white.opacity(0.6)) // lighter grey
+                    .foregroundColor(Color.white.opacity(0.6))
             }
-            .padding(.vertical, 20) // matches button inner padding
+            .padding(.vertical, 20)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .background(
@@ -206,37 +272,3 @@ struct PackageButton: View {
     }
 }
 
-// MARK: - Unique Color Extension
-extension Color {
-    init(fathrHex: String) {
-        let hex = fathrHex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3:
-            (a, r, g, b) = (255,
-                            (int >> 8) * 17,
-                            (int >> 4 & 0xF) * 17,
-                            (int & 0xF) * 17)
-        case 6:
-            (a, r, g, b) = (255,
-                            int >> 16,
-                            int >> 8 & 0xFF,
-                            int & 0xFF)
-        case 8:
-            (a, r, g, b) = (int >> 24,
-                            int >> 16 & 0xFF,
-                            int >> 8 & 0xFF,
-                            int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-
-        self.init(.sRGB,
-                  red: Double(r) / 255,
-                  green: Double(g) / 255,
-                  blue: Double(b) / 255,
-                  opacity: Double(a) / 255)
-    }
-}

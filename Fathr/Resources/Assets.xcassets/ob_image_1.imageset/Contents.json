@@ -1,7 +1,6 @@
 {
   "images" : [
     {
-      "filename" : "ob_image_1.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
@@ -11,7 +10,6 @@
       "scale" : "2x"
     },
     {
-      "filename" : "ob_image_1 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

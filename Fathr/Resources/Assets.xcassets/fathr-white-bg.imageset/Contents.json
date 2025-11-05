@@ -1,17 +1,15 @@
 {
   "images" : [
     {
-      "filename" : "fathr-blue-bg.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "fathr-blue-bg 1.png",
+      "filename" : "fathr-white-bg 1.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "fathr-blue-bg 2.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

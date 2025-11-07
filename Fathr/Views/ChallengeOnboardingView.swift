@@ -9,198 +9,204 @@ struct ChallengeOnboardingView: View {
     @State private var navigateToChallenge = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
-    @AppStorage("hasCompletedChallengeOnboarding") private var hasCompletedChallengeOnboarding = false
-
+    
+    // NEW: Callback when user completes onboarding
+    var onComplete: () -> Void
+    
     var body: some View {
         NavigationStack {
-            TabView(selection: $currentPage) {
-                // MARK: Screen 1
-                VStack(spacing: 30) {
-                    Image(systemName: "figure.2.and.child.holdinghands")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120, height: 120)
-                        .foregroundColor(.green)
-                        .padding(.top, 40)
-
-                    VStack(spacing: 10) {
-                        Text("Rebuild Your Vitality")
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-
-                        Text("The 74-Day Fertility Challenge helps you boost sperm health with daily science-backed habits.")
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
+            VStack {
+                // Progress dots
+                HStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { index in
+                        Circle()
+                            .fill(index == currentPage ? Color.green : Color.gray.opacity(0.3))
+                            .frame(width: 10, height: 10)
                     }
-
-                    Spacer()
-
-                    Button {
-                        currentPage = 1
-                    } label: {
-                        Text("Next")
-                            .bold()
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
                 }
-                .tag(0)
-                .padding(.bottom, 40)
-
-                // MARK: Screen 2
-                VStack(spacing: 30) {
-                    Image(systemName: "clock")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120, height: 120)
-                        .foregroundColor(.green)
-                        .padding(.top, 40)
-
-                    VStack(spacing: 15) {
-                        Text("Why 74 Days?")
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-
-                        Text("It takes about 74 days for your body to create new sperm. Daily habits like nutrition, exercise, and sleep can improve sperm count, motility, and overall quality.")
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                    }
-
-                    Spacer()
-
-                    Button {
-                        currentPage = 2
-                    } label: {
-                        Text("Next")
-                            .bold()
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-                }
-                .tag(1)
-                .padding(.bottom, 40)
-
-                // MARK: Screen 3
-                ScrollView {
-                    VStack(spacing: 20) {
-                        Image(systemName: "checkmark.circle.fill")
+                .padding(.top, 20)
+                
+                TabView(selection: $currentPage) {
+                    // Screen 1
+                    VStack(spacing: 30) {
+                        Image(systemName: "figure.2.and.child.holdinghands")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 120, height: 120)
                             .foregroundColor(.green)
                             .padding(.top, 40)
-
-                        Text("Core Rules")
+                        
+                        Text("Rebuild Your Vitality")
                             .font(.largeTitle.bold())
                             .multilineTextAlignment(.center)
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("🔥 No substitutions, no shortcuts:").bold()
-                            Text("1. Nutrition: Whole foods, hydration ≥3L, fertility supermeals daily")
-                            Text("2. Supplements: Zinc, D3+K2, CoQ10, Omega-3, testosterone boosters")
-                            Text("3. Heat avoidance: No saunas, hot tubs, laptops on lap, loose underwear, cold showers")
-                            Text("4. Exercise: 45+ min daily, 3x/week resistance, 2x/week cardio, 2x/week yoga/stretch")
-                            Text("5. Sleep & recovery: ≥7 hours, no blue light before bed")
-                            Text("6. Mental & sexual discipline: No porn, 7–10 day retention streaks, daily journal starting with 'Today I invested in my future family by…'")
-                            Text("7. Daily check-in: Complete all tasks, optional photo, log energy/mood")
-                        }
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal)
-
+                        Text("The 74-Day Fertility Challenge helps you build healthy daily habits to support reproductive wellness, energy, and vitality.")
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
                         Spacer()
-
-                        // MARK: Start Challenge Button
-                        Button {
-                            startChallenge()
-                        } label: {
-                            Text(isSavingProgress ? "Saving..." : "Start Challenge")
-                                .bold()
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(isSavingProgress ? Color.gray : Color.green)
-                                .foregroundColor(.white)
-                                .cornerRadius(12)
+                        Button("Next") {
+                            currentPage = 1
                         }
-                        .disabled(isSavingProgress)
+                        .bold()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                         .padding(.horizontal)
                     }
+                    .tag(0)
+                    .padding(.bottom, 40)
+                    
+                    // Screen 2
+                    VStack(spacing: 30) {
+                        Image(systemName: "clock")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .foregroundColor(.green)
+                            .padding(.top, 40)
+                        
+                        Text("Why 74 Days?")
+                            .font(.largeTitle.bold())
+                            .multilineTextAlignment(.center)
+                        Text("It takes about 74 days for your body to create new sperm. Daily habits like nutrition, exercise, sleep, and stress management may support reproductive health and overall wellness.")
+                            .font(.body)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Spacer()
+                        Button("Next") {
+                            currentPage = 2
+                        }
+                        .bold()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                    .tag(1)
+                    .padding(.bottom, 40)
+                    
+                    // Screen 3
+                    ScrollView {
+                        VStack(spacing: 20) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 120, height: 120)
+                                .foregroundColor(.green)
+                                .padding(.top, 40)
+                            
+                            Text("Core Rules")
+                                .font(.largeTitle.bold())
+                                .multilineTextAlignment(.center)
+                            
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Follow these rules closely:").bold()
+                                Group {
+                                    Text("1. Nutrition: Focus on whole foods, stay hydrated (≥3L daily), include fertility-supporting foods like leafy greens and berries.")
+                                    Text("2. Supplements: Consider zinc, D3+K2, CoQ10, and Omega-3. Consult a professional if unsure.")
+                                    Text("3. Heat Avoidance: Avoid saunas, hot tubs, laptops on lap; wear loose underwear.")
+                                    Text("4. Exercise: Move 45+ minutes daily; mix resistance, cardio, and stretching.")
+                                    Text("5. Sleep & Recovery: Aim for ≥7 hours nightly; reduce blue light before bed.")
+                                    Text("6. Mental & Sexual Discipline: Avoid pornography, keep a journal, and build focus.")
+                                    Text("7. Daily Check-in: Complete tasks and rate energy/mood.")
+                                }
+                                .font(.body)
+                                
+                                Text("\nThis challenge is educational and for wellness purposes only. Consult a healthcare professional before major lifestyle changes.")
+                                    .foregroundColor(.red.opacity(0.9))
+                                    .font(.footnote)
+                            }
+                            .padding(.horizontal)
+                            
+                            Spacer()
+                            
+                            Button {
+                                startChallenge()
+                            } label: {
+                                Text(isSavingProgress ? "Starting..." : "Start Challenge")
+                                    .bold()
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(isSavingProgress ? Color.gray : Color.green)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(12)
+                            }
+                            .disabled(isSavingProgress)
+                            .padding(.horizontal)
+                        }
+                    }
+                    .tag(2)
                 }
-                .tag(2)
-            }
-            .tabViewStyle(PageTabViewStyle())
-            // Removed .indexViewStyle to hide page indicator dots
-            .navigationTitle("Fertility Challenge")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(isPresented: $navigateToChallenge) {
-                ChallengeView(
-                    startDate: Date(),
-                    testStore: testStore
-                )
-                .environmentObject(authManager)
-            }
-            .alert(isPresented: $showErrorAlert) {
-                Alert(
-                    title: Text("Error"),
-                    message: Text(errorMessage),
-                    dismissButton: .default(Text("OK"))
-                )
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .navigationTitle("Fertility Challenge")
+                .navigationBarTitleDisplayMode(.inline)
+                
+                // FIXED: Only pass startDate
+                .navigationDestination(isPresented: $navigateToChallenge) {
+                    if let startDate = testStore.challengeProgress?.startDate {
+                        ChallengeView(startDate: startDate)
+                            .environmentObject(testStore)
+                            .environmentObject(authManager)
+                    } else {
+                        Text("Preparing your challenge...")
+                            .font(.headline)
+                    }
+                }
+                
+                .alert(isPresented: $showErrorAlert) {
+                    Alert(title: Text("Error"), message: Text(errorMessage), dismissButton: .default(Text("OK")))
+                }
             }
         }
     }
-
+    
     private func startChallenge() {
         guard !isSavingProgress, let userId = authManager.currentUserID else {
             errorMessage = "Unable to start challenge: No user signed in."
             showErrorAlert = true
             return
         }
-
+        
         isSavingProgress = true
-        hasCompletedChallengeOnboarding = true
-
+        
         var days: [Int: TestStore.ChallengeDayProgress] = [:]
         for day in 1...74 {
+            let dayTasks = ChallengeTasks.allDays
+                .first(where: { $0.dayNumber == day })?
+                .tasks ?? []
+            let taskProgress = dayTasks.map { _ in TestStore.ChallengeTaskProgress(completed: false) }
             days[day] = TestStore.ChallengeDayProgress(
-                tasks: Array(repeating: TestStore.ChallengeTaskProgress(completed: false), count: 7),
+                tasks: taskProgress,
                 mood: nil,
                 energy: nil,
                 journalEntry: nil
             )
         }
-
+        
         let progress = TestStore.ChallengeProgress(
             startDate: Date(),
             days: days,
             fhi: 0,
             hardcoreMode: true
         )
-
-        // Set the challengeProgress property before saving
+        
         testStore.challengeProgress = progress
-
+        
         testStore.saveChallengeProgress(userId: userId) { success in
             DispatchQueue.main.async {
                 isSavingProgress = false
                 if success {
-                    print("ChallengeOnboardingView: Progress saved successfully")
+                    onComplete()
                     navigateToChallenge = true
                 } else {
-                    errorMessage = "Failed to save challenge progress. Please try again."
+                    errorMessage = "Failed to save challenge progress. Check internet and try again."
                     showErrorAlert = true
-                    navigateToChallenge = true // Proceed to avoid getting stuck
                 }
             }
         }

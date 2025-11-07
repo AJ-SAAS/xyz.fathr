@@ -1,33 +1,14 @@
 import SwiftUI
-import FirebaseAuth
 
 struct ChallengeView: View {
     let startDate: Date
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var authManager: AuthManager
     @State private var currentDay: Int
+    @State private var showCompletionAlert = false
     @Environment(\.dismiss) private var dismiss
-    @State private var journalText: String = "" // Temporary state for journal input
-    @State private var isJournalSubmitted: Bool = false // Tracks if journal is submitted
 
-    // Define daily tasks aligned with Core Rules
-    private let dailyTasks: [(category: String, task: String, tip: String)] = [
-        // Nutrition
-        (category: "Nutrition", task: "Drink 3L of water", tip: "Hydration supports semen volume and optimal testicular function, key for sperm production."),
-        (category: "Nutrition", task: "Eat 1 cup of spinach or kale", tip: "Leafy greens provide folate, supporting healthy sperm DNA and reducing abnormalities."),
-        // Supplements
-        (category: "Supplements", task: "Take a zinc supplement (15–30mg)", tip: "Zinc is critical for sperm motility and testosterone production."),
-        // Heat Avoidance
-        (category: "Heat Avoidance", task: "Wear loose underwear today", tip: "Loose clothing keeps testes cooler, optimizing sperm production."),
-        // Exercise
-        (category: "Exercise", task: "Do 45 min of exercise (e.g., walk, gym)", tip: "Moderate exercise boosts testosterone and blood flow, enhancing sperm quality."),
-        // Sleep & Recovery
-        (category: "Sleep", task: "Sleep 7–8 hours tonight", tip: "Quality sleep regulates testosterone, crucial for the 74-day sperm renewal cycle."),
-        // Mental & Sexual Discipline
-        (category: "Mental Discipline", task: "Write a journal entry (below)", tip: "Journaling reduces stress, lowering cortisol that can harm sperm health.")
-    ]
-
-    init(startDate: Date, testStore: TestStore) {
+    init(startDate: Date) {
         self.startDate = startDate
         let daysSinceStart = Calendar.current.dateComponents([.day], from: startDate, to: Date()).day ?? 0
         self._currentDay = State(initialValue: min(max(daysSinceStart + 1, 1), 74))
@@ -55,12 +36,13 @@ struct ChallengeView: View {
             }
         }
         .onAppear {
+            testStore.initializeDayIfNeeded(day: currentDay)
             print("ChallengeView loaded with currentDay: \(currentDay)")
-            // Load existing journal entry for the current day
-            if let dayProgress = testStore.challengeProgress?.days[currentDay] {
-                journalText = dayProgress.journalEntry ?? ""
-                isJournalSubmitted = dayProgress.journalEntry != nil
-            }
+        }
+        .alert("Day \(currentDay) Complete!", isPresented: $showCompletionAlert) {
+            Button("Awesome!") { }
+        } message: {
+            Text("You're building momentum. Keep going!")
         }
     }
 
@@ -70,44 +52,83 @@ struct ChallengeView: View {
         if let dayProgress = testStore.challengeProgress?.days[currentDay] {
             ScrollView {
                 VStack(spacing: 20) {
+                    Spacer(minLength: 16)
+
+                    // MARK: - Streak Header
+                    HStack {
+                        Image(systemName: "flame.fill")
+                            .foregroundColor(.orange)
+                            .font(.title2)
+                        Text("Streak: \(testStore.challengeProgress?.currentStreak ?? 0)")
+                            .font(.title2.bold())
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+
+                    // MARK: - Day Title
                     Text("Day \(currentDay)/74")
                         .font(.title.bold())
+                        .frame(maxWidth: .infinity, alignment: .center)
 
+                    // MARK: - FHI Progress
                     ProgressView(value: Double(testStore.challengeProgress?.fhi ?? 0), total: 100)
                         .progressViewStyle(.linear)
                         .tint(.green)
                         .padding(.horizontal)
 
-                    ForEach(dailyTasks.indices, id: \.self) { index in
-                        HStack(alignment: .top, spacing: 12) {
-                            Button(action: {
-                                toggleTask(index: index)
-                            }) {
-                                Image(systemName: dayProgress.tasks[index].completed ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(dayProgress.tasks[index].completed ? .green : .gray)
-                                    .font(.title2)
-                            }
-                            .accessibilityLabel(dayProgress.tasks[index].completed ? "Unmark task" : "Mark task as completed")
+                    // MARK: - Tasks
+                    ForEach(currentDayTasks(), id: \.id) { task in
+                        if let index = ChallengeTasks.allDays
+                            .first(where: { $0.dayNumber == currentDay })?
+                            .tasks.firstIndex(where: { $0.id == task.id }) {
+                            
+                            let isCompleted = dayProgress.tasks[index].completed
+                            let isDayCompleted = testStore.challengeProgress?.days[currentDay]?.completed == true
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(dailyTasks[index].category)
-                                    .font(.caption.bold())
-                                    .foregroundColor(.secondary)
-                                Text(dailyTasks[index].task)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                Text(dailyTasks[index].tip)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                            HStack(alignment: .top, spacing: 12) {
+                                Button(action: {
+                                    guard !isDayCompleted else { return }
+                                    toggleTask(index: index)
+                                }) {
+                                    Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(isCompleted ? .green : .gray)
+                                        .font(.title2)
+                                }
+                                .disabled(isDayCompleted)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(task.category)
+                                        .font(.caption.bold())
+                                        .foregroundColor(categoryColor(task.category))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(categoryColor(task.category).opacity(0.2))
+                                        .cornerRadius(6)
+
+                                    Text(task.task)
+                                        .font(.body)
+                                        .strikethrough(isCompleted)
+                                        .foregroundColor(isCompleted ? .secondary : .primary)
+
+                                    Text(task.tip)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
                             }
-                            Spacer()
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            .opacity(isDayCompleted ? 0.7 : 1.0)
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
                     }
 
-                    VStack(spacing: 10) {
-                        VStack {
+                    // MARK: - Mood & Energy
+                    VStack(spacing: 16) {
+                        VStack(alignment: .leading) {
                             Text("Mood: \(dayProgress.mood ?? 5)/10")
                                 .font(.body)
                             Slider(value: Binding(
@@ -117,7 +138,7 @@ struct ChallengeView: View {
                             .tint(.green)
                         }
 
-                        VStack {
+                        VStack(alignment: .leading) {
                             Text("Energy: \(dayProgress.energy ?? 5)/10")
                                 .font(.body)
                             Slider(value: Binding(
@@ -126,60 +147,94 @@ struct ChallengeView: View {
                             ), in: 0...10, step: 1)
                             .tint(.green)
                         }
-
-                        VStack(spacing: 8) {
-                            Text("Journal Entry")
-                                .font(.body.bold())
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            ZStack(alignment: .topLeading) {
-                                if journalText.isEmpty && !isJournalSubmitted {
-                                    Text("Today I invested in my future family by…")
-                                        .font(.body)
-                                        .foregroundColor(.gray.opacity(0.5))
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 5)
-                                }
-                                TextEditor(text: $journalText)
-                                    .frame(height: 100)
-                                    .padding(4)
-                                    .background(Color.gray.opacity(0.1))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                    )
-                            }
-                            .padding(.horizontal)
-
-                            Button(action: {
-                                submitJournal()
-                            }) {
-                                Text(isJournalSubmitted ? "Journal Submitted" : "Submit Journal")
-                                    .bold()
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(isJournalSubmitted ? Color.gray : Color.green)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
-                            }
-                            .disabled(isJournalSubmitted)
-                            .padding(.horizontal)
-                        }
                     }
-                    .padding(.vertical)
+                    .padding(.horizontal)
+
+                    // MARK: - Complete Day Button
+                    if allTasksCompleted() && !(testStore.challengeProgress?.days[currentDay]?.completed == true) {
+                        Button(action: completeCurrentDay) {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.title2)
+                                Text("Complete Day \(currentDay)")
+                                    .font(.title3.bold())
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .cornerRadius(12)
+                            .shadow(radius: 5)
+                        }
+                        .padding(.horizontal)
+                    }
+
+                    // MARK: - Day Complete Badge
+                    if testStore.challengeProgress?.days[currentDay]?.completed == true {
+                        HStack {
+                            Image(systemName: "trophy.fill")
+                                .foregroundColor(.yellow)
+                            Text("Day \(currentDay) Complete!")
+                                .font(.title3.bold())
+                                .foregroundColor(.green)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+
+                    Spacer(minLength: 32)
                 }
                 .padding()
             }
+            .ignoresSafeArea(edges: .bottom)
         } else {
             Text("Loading day \(currentDay)...")
         }
     }
 
+    // MARK: - Helpers
+    private func currentDayTasks() -> [DailyTask] {
+        ChallengeTasks.allDays.first { $0.dayNumber == currentDay }?.tasks ?? []
+    }
+
+    private func allTasksCompleted() -> Bool {
+        guard let progress = testStore.challengeProgress?.days[currentDay] else { return false }
+        return progress.tasks.allSatisfy { $0.completed }
+    }
+
     private func toggleTask(index: Int) {
-        guard var dayProgress = testStore.challengeProgress?.days[currentDay] else { return }
-        dayProgress.tasks[index].completed.toggle()
-        testStore.challengeProgress?.days[currentDay] = dayProgress
+        guard var progress = testStore.challengeProgress else { return }
+        progress.days[currentDay]?.tasks[index].completed.toggle()
+        testStore.challengeProgress = progress
         testStore.updateFHI()
+        saveProgress()
+    }
+
+    private func completeCurrentDay() {
+        guard var progress = testStore.challengeProgress else { return }
+
+        // Mark day as completed
+        progress.days[currentDay]?.completed = true
+        progress.currentStreak += 1
+        if progress.currentStreak > progress.bestStreak {
+            progress.bestStreak = progress.currentStreak
+        }
+
+        testStore.challengeProgress = progress
+        testStore.updateFHI()
+        saveProgress()
+
+        // Haptic
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+
+        showCompletionAlert = true
+    }
+
+    private func saveProgress() {
         if let userId = authManager.currentUserID {
             testStore.saveChallengeProgress(userId: userId) { success in
                 if !success {
@@ -189,36 +244,43 @@ struct ChallengeView: View {
         }
     }
 
-    private func submitJournal() {
-        guard var dayProgress = testStore.challengeProgress?.days[currentDay] else { return }
-        dayProgress.journalEntry = journalText.isEmpty ? nil : journalText
-        testStore.challengeProgress?.days[currentDay] = dayProgress
-        if let userId = authManager.currentUserID {
-            testStore.saveChallengeProgress(userId: userId) { success in
-                DispatchQueue.main.async {
-                    if success {
-                        print("ChallengeView: Journal saved successfully")
-                        isJournalSubmitted = true
-                    } else {
-                        print("ChallengeView: Failed to save journal")
-                    }
-                }
-            }
+    private func ensureDayExists() {
+        guard testStore.challengeProgress != nil else { return }
+        if testStore.challengeProgress?.days[currentDay] == nil {
+            let tasks = currentDayTasks().map { _ in TestStore.ChallengeTaskProgress(completed: false) }
+            testStore.challengeProgress?.days[currentDay] = TestStore.ChallengeDayProgress(
+                tasks: tasks,
+                mood: 5,
+                energy: 5,
+                journalEntry: nil,
+                completed: false
+            )
+            saveProgress()
         }
     }
 
     private func isChallengeCompleted() -> Bool {
-        return currentDay == 74 && (testStore.challengeProgress?.days[74]?.tasks.allSatisfy { $0.completed } ?? false)
+        currentDay == 74 && (testStore.challengeProgress?.days[74]?.completed == true)
     }
 
     private func isWeeklyDashboardDay() -> Bool {
-        return [7, 14, 21, 28, 35, 42, 49, 56, 63, 70].contains(currentDay)
-            && (testStore.challengeProgress?.days[currentDay]?.tasks.allSatisfy { $0.completed } ?? false)
+        [7, 14, 21, 28, 35, 42, 49, 56, 63, 70].contains(currentDay)
+            && (testStore.challengeProgress?.days[currentDay]?.completed == true)
+    }
+
+    private func categoryColor(_ category: String) -> Color {
+        switch category {
+        case "Nutrition": return .blue
+        case "Exercise": return .orange
+        case "Sleep": return .purple
+        case "Mental Wellness": return .pink
+        case "Lifestyle": return .green
+        default: return .gray
+        }
     }
 }
 
-// MARK: - Placeholder Views
-
+// MARK: - Challenge Completion View
 struct ChallengeCompletionView: View {
     @EnvironmentObject var testStore: TestStore
     var body: some View {
@@ -269,6 +331,7 @@ struct ChallengeCompletionView: View {
     }
 }
 
+// MARK: - Weekly Dashboard View
 struct WeeklyDashboardView: View {
     @EnvironmentObject var testStore: TestStore
     let day: Int
@@ -288,14 +351,12 @@ struct WeeklyDashboardView: View {
                 .font(.subheadline)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
-            Button("Continue to Day \(day + 1)") {
-                // Handled by parent view
-            }
-            .font(.subheadline.bold())
-            .foregroundColor(.white)
-            .padding()
-            .background(Color.green)
-            .cornerRadius(10)
+            Button("Continue to Day \(day + 1)") { }
+                .font(.subheadline.bold())
+                .foregroundColor(.white)
+                .padding()
+                .background(Color.green)
+                .cornerRadius(10)
         }
         .padding()
         .background(Color.white)

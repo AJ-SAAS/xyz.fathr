@@ -119,7 +119,7 @@ class TestStore: ObservableObject {
 
     // MARK: - Challenge Progress Models
     struct ChallengeTaskProgress: Codable {
-        var completed: Bool
+        var completed: Bool = false
     }
 
     struct ChallengeDayProgress: Codable {
@@ -127,26 +127,39 @@ class TestStore: ObservableObject {
         var mood: Int?
         var energy: Int?
         var journalEntry: String?
+        var completed: Bool = false  // ← NOW IN MODEL
     }
 
     struct ChallengeProgress: Codable {
-        var startDate: Date?
+        var startDate: Date  // ← REQUIRED
         var days: [Int: ChallengeDayProgress]
-        var fhi: Int
-        var hardcoreMode: Bool
+        var fhi: Int = 0
+        var hardcoreMode: Bool = true
+        var currentStreak: Int = 0
+        var bestStreak: Int = 0
     }
 
     // MARK: - Challenge CRUD
     func saveChallengeProgress(userId: String, completion: @escaping (Bool) -> Void = { _ in }) {
-        guard let progress = challengeProgress else { completion(false); return }
+        guard var progress = challengeProgress else { completion(false); return }
+        
+        // Update FHI before saving
+        updateFHI()
+        progress.fhi = self.challengeProgress?.fhi ?? 0
+        
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         do {
             try docRef.setData(from: progress) { error in
-                if let error = error { print("Error saving challenge: \(error)"); completion(false) }
-                else { completion(true) }
+                if let error = error {
+                    print("Error saving challenge: \(error.localizedDescription)")
+                    completion(false)
+                } else {
+                    print("Challenge progress saved successfully")
+                    completion(true)
+                }
             }
         } catch {
-            print("Error encoding challenge progress: \(error)")
+            print("Error encoding challenge progress: \(error.localizedDescription)")
             completion(false)
         }
     }
@@ -155,7 +168,7 @@ class TestStore: ObservableObject {
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         docRef.getDocument { document, error in
             if let error = error {
-                print("Error fetching challenge progress: \(error)")
+                print("Error fetching challenge progress: \(error.localizedDescription)")
                 completion(nil)
                 return
             }
@@ -165,7 +178,7 @@ class TestStore: ObservableObject {
                     DispatchQueue.main.async { self.challengeProgress = progress }
                     completion(progress)
                 } catch {
-                    print("Error decoding challenge progress: \(error)")
+                    print("Error decoding challenge progress: \(error.localizedDescription)")
                     completion(nil)
                 }
             } else {
@@ -178,12 +191,23 @@ class TestStore: ObservableObject {
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         challengeListener?.remove()
         challengeListener = docRef.addSnapshotListener { [weak self] document, error in
+            if let error = error {
+                print("Challenge listener error: \(error.localizedDescription)")
+                return
+            }
             if let document = document, document.exists {
                 do {
                     let progress = try document.data(as: ChallengeProgress.self)
-                    DispatchQueue.main.async { self?.challengeProgress = progress }
+                    DispatchQueue.main.async {
+                        self?.challengeProgress = progress
+                        self?.updateFHI() // Ensure FHI is up-to-date
+                    }
                 } catch {
-                    print("Error decoding challenge progress snapshot: \(error)")
+                    print("Error decoding challenge progress snapshot: \(error.localizedDescription)")
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self?.challengeProgress = nil
                 }
             }
         }
@@ -192,6 +216,9 @@ class TestStore: ObservableObject {
     func deleteChallengeProgress(userId: String, completion: @escaping (Bool) -> Void) {
         let docRef = db.collection("users").document(userId).collection("challenge").document("progress")
         docRef.delete { error in
+            if let error = error {
+                print("Error deleting challenge: \(error.localizedDescription)")
+            }
             completion(error == nil)
             if error == nil { self.challengeProgress = nil }
         }
@@ -199,10 +226,32 @@ class TestStore: ObservableObject {
 
     // MARK: - Helper: FHI Calculation
     func updateFHI() {
-        guard let progress = challengeProgress else { return }
+        guard let progress = challengeProgress else {
+            challengeProgress?.fhi = 0
+            return
+        }
         let allTasks = progress.days.values.flatMap { $0.tasks }
         let completedCount = allTasks.filter { $0.completed }.count
         let totalCount = allTasks.count
-        challengeProgress?.fhi = totalCount > 0 ? Int(Double(completedCount) / Double(totalCount) * 100) : 0
+        let newFHI = totalCount > 0 ? Int(Double(completedCount) / Double(totalCount) * 100) : 0
+        challengeProgress?.fhi = newFHI
+    }
+
+    // MARK: - Helper: Initialize Day (Used in ChallengeView)
+    func initializeDayIfNeeded(day: Int) {
+        guard var progress = challengeProgress else { return }
+        guard progress.days[day] == nil else { return }
+
+        let taskCount = ChallengeTasks.allDays.first { $0.dayNumber == day }?.tasks.count ?? 5
+        let tasks = Array(repeating: ChallengeTaskProgress(completed: false), count: taskCount)
+
+        progress.days[day] = ChallengeDayProgress(
+            tasks: tasks,
+            mood: 5,
+            energy: 5,
+            journalEntry: nil,
+            completed: false
+        )
+        challengeProgress = progress
     }
 }

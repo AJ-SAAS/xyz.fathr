@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 enum Trend {
     case up, down, none
@@ -25,7 +26,6 @@ struct DashboardView: View {
     @Binding var selectedTab: Int
     @State private var showFullAnalysis = false
     @State private var selectedTest: TestData?
-    @State private var challengeProgress: TestStore.ChallengeProgress?
     @State private var isLoadingChallengeProgress = true
     @State private var navigateToChallenge = false
     @AppStorage("hasCompletedChallengeOnboarding") private var hasCompletedChallengeOnboarding = false
@@ -45,17 +45,17 @@ struct DashboardView: View {
                     WelcomeHeaderView()
                     
                     HStack(alignment: .center, spacing: 16) {
-                        Button(action: {
+                        Button {
                             showInput = true
-                        }) {
+                        } label: {
                             AddTestCardView()
                                 .frame(maxWidth: .infinity, maxHeight: 160)
                         }
                         .accessibilityLabel("Add a New Sperm Test")
                         
-                        Button(action: {
+                        Button {
                             navigateToChallenge = true
-                        }) {
+                        } label: {
                             SeventyFourDayResetCardView()
                                 .frame(maxWidth: .infinity, maxHeight: 160)
                         }
@@ -107,7 +107,6 @@ struct DashboardView: View {
                     }
                     
                     ArticlesView()
-                    
                     DisclaimerView()
                 }
                 .padding(.vertical)
@@ -154,29 +153,60 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Challenge Destination View
     @ViewBuilder
     private func challengeDestinationView() -> some View {
         if isLoadingChallengeProgress {
-            ProgressView().padding()
+            ProgressView("Loading...").padding()
         } else if hasCompletedChallengeOnboarding,
-                  let progress = challengeProgress,
-                  let startDate = progress.startDate {
-            ChallengeView(startDate: startDate, testStore: testStore)
-                .environmentObject(authManager)
-        } else if hasCompletedChallengeOnboarding {
-            ChallengeView(startDate: Date(), testStore: testStore)
-                .environmentObject(authManager)
-        } else {
-            ChallengeOnboardingView()
+                  let startDate = testStore.challengeProgress?.startDate {
+            ChallengeView(startDate: startDate)
                 .environmentObject(testStore)
                 .environmentObject(authManager)
-                .onDisappear {
+        } else if hasCompletedChallengeOnboarding {
+            ChallengeView(startDate: Date())
+                .environmentObject(testStore)
+                .environmentObject(authManager)
+        } else {
+            ChallengeOnboardingView(
+                onComplete: {
                     hasCompletedChallengeOnboarding = true
-                    print("DashboardView: Onboarding marked complete via .onDisappear")
+                    // Create full 74-day progress with real tasks
+                    var days: [Int: TestStore.ChallengeDayProgress] = [:]
+                    for day in 1...74 {
+                        let dayTasks = ChallengeTasks.allDays
+                            .first(where: { $0.dayNumber == day })?
+                            .tasks ?? []
+                        let taskProgress = dayTasks.map { _ in TestStore.ChallengeTaskProgress(completed: false) }
+                        days[day] = TestStore.ChallengeDayProgress(
+                            tasks: taskProgress,
+                            mood: nil,
+                            energy: nil,
+                            journalEntry: nil
+                        )
+                    }
+                    let progress = TestStore.ChallengeProgress(
+                        startDate: Date(),
+                        days: days,
+                        fhi: 0,
+                        hardcoreMode: true
+                    )
+                    testStore.challengeProgress = progress
+                    if let userId = authManager.currentUserID {
+                        testStore.saveChallengeProgress(userId: userId) { success in
+                            if !success {
+                                print("DashboardView: Failed to save initial challenge progress")
+                            }
+                        }
+                    }
                 }
+            )
+            .environmentObject(testStore)
+            .environmentObject(authManager)
         }
     }
 
+    // MARK: - Load Challenge Progress
     private func loadChallengeProgress() {
         guard let userId = authManager.currentUserID else {
             print("DashboardView: No user ID found — skipping challenge progress load.")
@@ -187,9 +217,7 @@ struct DashboardView: View {
         print("DashboardView: Fetching challenge progress for user: \(userId)")
         testStore.fetchChallengeProgress(userId: userId) { progress in
             DispatchQueue.main.async {
-                self.challengeProgress = progress
                 self.isLoadingChallengeProgress = false
-
                 if progress?.startDate != nil {
                     self.hasCompletedChallengeOnboarding = true
                     print("DashboardView: Challenge progress found — marking onboarding as complete.")
@@ -200,6 +228,7 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Metrics Evaluation
     private func evaluateMetrics(for test: TestData) -> ([String], [String]) {
         var winningMetrics: [String] = []
         var improvementMetrics: [String] = []
@@ -394,22 +423,18 @@ struct AddTestCardView: View {
         VStack(spacing: 8) {
             Image(systemName: "plus")
                 .font(.system(size: 20))
-                .foregroundColor(.red)
+                .foregroundColor(.black) // BLACK
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("Add a New Sperm Test")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.black)
+                .foregroundColor(.black) // BLACK
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .background(Color.white)
+        .background(Color(red: 0.7, green: 0.9, blue: 1.0))
         .cornerRadius(15)
-        .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.red, lineWidth: 0.5)
-        )
         .shadow(color: .gray.opacity(0.1), radius: 5)
     }
 }
@@ -419,25 +444,21 @@ struct SeventyFourDayResetCardView: View {
         VStack(spacing: 8) {
             Image(systemName: "star.fill")
                 .font(.system(size: 20))
-                .foregroundColor(.white)
+                .foregroundColor(.yellow)
                 .padding(8)
-                .background(Color.black)
+                .background(Color(red: 0.7, green: 0.9, blue: 1.0))
                 .clipShape(Circle())
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("74 Day Reset Challenge")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(.black) // BLACK
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        .background(Color.black)
+        .background(Color(red: 0.7, green: 0.9, blue: 1.0))
         .cornerRadius(15)
-        .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.black, lineWidth: 1)
-        )
         .shadow(color: .gray.opacity(0.1), radius: 5)
     }
 }
@@ -508,7 +529,7 @@ struct FertilitySnapshotView: View {
                     Text("Fertility Snapshot")
                         .font(.headline)
                         .fontDesign(.rounded)
-                        .foregroundColor(.black)
+                        .foregroundColor(.black) // BLACK
                     if testStore.tests.first != nil {
                         Button(action: {
                             if purchaseModel.isSubscribed {
@@ -532,7 +553,7 @@ struct FertilitySnapshotView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: 160)
-                .background(Color.gray.opacity(0.2))
+                .background(Color(red: 0.7, green: 0.9, blue: 1.0)) // LIGHT BLUE
                 .cornerRadius(15)
                 .shadow(color: .gray.opacity(0.1), radius: 5)
             }

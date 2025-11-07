@@ -134,7 +134,7 @@ struct PurchaseView: View {
                             }
                         }) {
                             HStack {
-                                Text(isPurchasing ? "Processing..." : "Start my free trial")
+                                Text(isPurchasing ? "Processing..." : "Subscribe & Continue")
                                     .font(.system(size: 18, weight: .semibold))
                                 if !isPurchasing {
                                     Image(systemName: "chevron.right")

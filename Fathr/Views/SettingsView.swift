@@ -43,7 +43,7 @@ struct SettingsView: View {
                                 .padding(.vertical, 4)
                                 .accessibilityLabel("You are a Premium Member")
                         } else {
-                            Button("Go Premium 🚀") {
+                            Button("Unlock Fathr Plus 🚀") {
                                 showingPaywall = true
                             }
                             .font(.system(.body))

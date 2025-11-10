@@ -34,7 +34,7 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Image("Fathr-logo-dash-2")
+                    Image("fathr-logo-dash-2")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 120)

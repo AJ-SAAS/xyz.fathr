@@ -9,7 +9,7 @@ struct OB3_ValueCarousel: View {
     private let items: [(image: String, title: String, description: String)] = [
         ("fathr-white-blue",    "Welcome to Fathr",                     "Your journey to a healthier family starts here."),
         ("ob_signup",         "Track Your Progress",                  "Easily log sperm test results and see how your health improves over time."),
-        ("wellnesscoach-1",   "Ask Your Wellness Coach",              "Get instant, personalized wellness guidance for better fertility and energy."),
+        ("wellness-coach-2",   "Ask Your Wellness Coach",              "Get instant, personalized wellness guidance for better fertility and energy."),
         ("74-day-challenge",  "Join the Fertility Challenge",         "Follow simple daily habits to strengthen your health and vitality."),
         ("fathrpro",          "Explore Your Resource Center",         "Read expert-backed tips and stay informed on every step of your journey."),
         ("fathr-legacy1",     "Build Your Legacy",                    "Reach your family goals faster with insights made for men ready to grow.")

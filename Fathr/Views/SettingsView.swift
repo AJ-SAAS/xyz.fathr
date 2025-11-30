@@ -57,6 +57,7 @@ struct SettingsView: View {
                     // MARK: - Support Section
                     Section(header: Text("Support")
                         .font(.system(.headline, design: .default, weight: .bold))) {
+                        
                         Link("Contact Support", destination: URL(string: "mailto:fathrapp@gmail.com")!)
                             .font(.system(.body))
                             .padding(.vertical, 4)
@@ -79,6 +80,19 @@ struct SettingsView: View {
                                 .padding(.vertical, 4)
                         }
                         .accessibilityLabel("Share Your Feedback via Email")
+                        
+                        // 🆕 Rate Us Button
+                        Button(action: {
+                            if let url = URL(string: "https://apps.apple.com/us/app/mens-fertility-tracker-fathr/id6745686037?action=write-review") {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            Text("Rate Us ⭐️")
+                                .font(.system(.body))
+                                .foregroundColor(.blue)
+                                .padding(.vertical, 4)
+                        }
+                        .accessibilityLabel("Rate Fathr App on App Store")
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
 
@@ -253,4 +267,3 @@ struct SettingsView: View {
         .environmentObject(TestStore())
         .environmentObject(PurchaseModel())
 }
-

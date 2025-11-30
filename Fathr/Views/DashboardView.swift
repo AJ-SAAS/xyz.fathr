@@ -29,89 +29,116 @@ struct DashboardView: View {
     @State private var isLoadingChallengeProgress = true
     @State private var navigateToChallenge = false
     @AppStorage("hasCompletedChallengeOnboarding") private var hasCompletedChallengeOnboarding = false
+    
+    // MARK: - Rate Us Popup
+    @State private var showRateUsPopup = false
+    @AppStorage("hasRatedToday") private var hasRatedToday: Bool = false
+    @State private var selectedStars: Int = 0
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Image("fathr-logo-dash-2")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 120)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 16)
-                        .padding(.bottom, 8)
-                    
-                    WelcomeHeaderView()
-                    
-                    HStack(alignment: .center, spacing: 16) {
-                        Button {
-                            showInput = true
-                        } label: {
-                            AddTestCardView()
-                                .frame(maxWidth: .infinity, maxHeight: 160)
-                        }
-                        .accessibilityLabel("Add a New Sperm Test")
+            ZStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Image("fathr-logo-dash-2")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 16)
+                            .padding(.bottom, 8)
                         
-                        Button {
-                            navigateToChallenge = true
-                        } label: {
-                            SeventyFourDayResetCardView()
-                                .frame(maxWidth: .infinity, maxHeight: 160)
-                        }
-                        .accessibilityLabel("74 Day Reset Challenge")
-                    }
-                    .padding(.horizontal)
-                    
-                    if !testStore.tests.isEmpty {
-                        FertilitySnapshotView(
-                            selectedTab: $selectedTab,
-                            showPaywall: $showPaywall,
-                            showFullAnalysis: $showFullAnalysis
-                        )
+                        WelcomeHeaderView()
                         
-                        CoreMetricsOverviewView()
-                        
-                        RecentTestsSection(
-                            selectedTab: $selectedTab,
-                            showPaywall: $showPaywall,
-                            selectedTest: $selectedTest
-                        )
-                        
-                        if let latestTest = testStore.tests.first {
-                            let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
-                            MetricCardView(
-                                title: "Where You Are Winning",
-                                metrics: winningMetrics,
-                                isWinning: true
-                            )
-                            MetricCardView(
-                                title: "Your Next Steps",
-                                metrics: improvementMetrics,
-                                isWinning: false
-                            )
-                        }
-                        
-                        DailyBoostTipsView(
-                            checkedTips: checkedTips,
-                            onTipToggle: { index in
-                                checkedTips[index] = !(checkedTips[index] ?? false)
+                        HStack(alignment: .center, spacing: 16) {
+                            Button {
+                                showInput = true
+                            } label: {
+                                AddTestCardView()
+                                    .frame(maxWidth: .infinity, maxHeight: 160)
                             }
-                        )
-                    } else {
-                        RecentTestsSection(
-                            selectedTab: $selectedTab,
-                            showPaywall: $showPaywall,
-                            selectedTest: $selectedTest
-                        )
+                            .accessibilityLabel("Add a New Sperm Test")
+                            
+                            Button {
+                                navigateToChallenge = true
+                            } label: {
+                                SeventyFourDayResetCardView()
+                                    .frame(maxWidth: .infinity, maxHeight: 160)
+                            }
+                            .accessibilityLabel("74 Day Reset Challenge")
+                        }
+                        .padding(.horizontal)
+                        
+                        if !testStore.tests.isEmpty {
+                            FertilitySnapshotView(
+                                selectedTab: $selectedTab,
+                                showPaywall: $showPaywall,
+                                showFullAnalysis: $showFullAnalysis
+                            )
+                            
+                            CoreMetricsOverviewView()
+                            
+                            RecentTestsSection(
+                                selectedTab: $selectedTab,
+                                showPaywall: $showPaywall,
+                                selectedTest: $selectedTest
+                            )
+                            
+                            if let latestTest = testStore.tests.first {
+                                let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
+                                MetricCardView(
+                                    title: "Where You Are Winning",
+                                    metrics: winningMetrics,
+                                    isWinning: true
+                                )
+                                MetricCardView(
+                                    title: "Your Next Steps",
+                                    metrics: improvementMetrics,
+                                    isWinning: false
+                                )
+                            }
+                            
+                            DailyBoostTipsView(
+                                checkedTips: checkedTips,
+                                onTipToggle: { index in
+                                    checkedTips[index] = !(checkedTips[index] ?? false)
+                                }
+                            )
+                        } else {
+                            RecentTestsSection(
+                                selectedTab: $selectedTab,
+                                showPaywall: $showPaywall,
+                                selectedTest: $selectedTest
+                            )
+                        }
+                        
+                        ArticlesView()
+                        DisclaimerView()
                     }
-                    
-                    ArticlesView()
-                    DisclaimerView()
+                    .padding(.vertical)
                 }
-                .padding(.vertical)
+                .background(Color.white)
+                
+                // MARK: - Rate Us Popup Overlay
+                if showRateUsPopup {
+                    RateUsPopupView(
+                        selectedStars: $selectedStars,
+                        onSubmit: {
+                            if let url = URL(string: "https://apps.apple.com/app/idYOUR_APP_ID") {
+                                UIApplication.shared.open(url)
+                            }
+                            hasRatedToday = true
+                            showRateUsPopup = false
+                        },
+                        onCancel: {
+                            hasRatedToday = true
+                            showRateUsPopup = false
+                        }
+                    )
+                    .transition(.opacity.combined(with: .scale))
+                    .zIndex(1)
+                }
             }
-            .background(Color.white)
             .navigationTitle("")
             .sheet(isPresented: $showInput) {
                 TestInputView()
@@ -141,15 +168,80 @@ struct DashboardView: View {
             }
             .onAppear {
                 updateDailyTips()
-                print("DashboardView: testStore.tests count: \(testStore.tests.count)")
                 for test in testStore.tests {
-                    print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus), overallStatus: \(test.overallStatus), Date: \(test.date), Concentration: \(test.spermConcentration ?? 0), Motility: \(test.totalMobility ?? 0)")
+                    print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus)")
                 }
                 loadChallengeProgress()
             }
-            .onChange(of: lastTipDate) {
+            .onChange(of: lastTipDate) { _ in
                 updateDailyTips()
             }
+            .onChange(of: testStore.tests) { newTests in
+                guard !newTests.isEmpty else { return }
+                if Calendar.current.isDateInToday(newTests.first!.date) && !hasRatedToday {
+                    withAnimation { showRateUsPopup = true }
+                }
+            }
+        }
+    }
+
+    // MARK: - 5-Star Popup View
+    struct RateUsPopupView: View {
+        @Binding var selectedStars: Int
+        var onSubmit: () -> Void
+        var onCancel: () -> Void
+
+        var body: some View {
+            VStack(spacing: 16) {
+                Text("Enjoying Fathr?")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.top)
+                
+                Text("⭐️ Tap to rate us!")
+                    .font(.headline)
+                
+                HStack(spacing: 12) {
+                    ForEach(1...5, id: \.self) { i in
+                        Image(systemName: i <= selectedStars ? "star.fill" : "star")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .foregroundColor(.yellow)
+                            .onTapGesture {
+                                withAnimation(.spring()) {
+                                    selectedStars = i
+                                }
+                            }
+                    }
+                }
+                
+                HStack(spacing: 16) {
+                    Button(action: onSubmit) {
+                        Text("Rate Now")
+                            .bold()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    
+                    Button(action: onCancel) {
+                        Text("Later")
+                            .bold()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.3))
+                            .foregroundColor(.black)
+                            .cornerRadius(12)
+                    }
+                }
+            }
+            .padding()
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(radius: 10)
+            .padding(32)
         }
     }
 

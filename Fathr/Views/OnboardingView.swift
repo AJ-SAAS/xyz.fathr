@@ -37,8 +37,12 @@ struct OnboardingView: View {
 
                     // Top back button
                     HStack {
-                        if step > 0 {
-                            Button(action: { step -= 1 }) {
+                        if step > 0 && step < 9 { // disable back on loading
+                            Button(action: {
+                                if step > 0 {
+                                    step -= 1
+                                }
+                            }) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(.body, design: .default, weight: .bold))
                                     .foregroundColor(.black)
@@ -52,17 +56,17 @@ struct OnboardingView: View {
 
                     // Progress bar
                     if step > 0 {
-                        ProgressView(value: Double(step - 1), total: 7.0)
+                        ProgressView(value: Double(step - 1), total: 9.0) // total steps now 9
                             .progressViewStyle(LinearProgressViewStyle())
                             .tint(Color.blue)
                             .frame(maxWidth: min(geometry.size.width * 0.9, 600))
                             .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                            .accessibilityLabel("Onboarding progress: step \(step) of 8")
+                            .accessibilityLabel("Onboarding progress: step \(step) of 9")
                     }
 
                     // Step views
                     Group {
-                        switch step {
+                        switch max(step, 0) { // clamp step to 0+
                         case 0:
                             OB3_ValueCarousel {
                                 self.step += 1
@@ -82,6 +86,8 @@ struct OnboardingView: View {
                         case 7:
                             OB11_ImpactView(onNext: { step += 1 })
                         case 8:
+                            OB12_ReviewView(onNext: { step += 1 })
+                        case 9:
                             OB12_LoadingView(
                                 onNext: {
                                     hasCompletedOnboarding = true
@@ -96,6 +102,7 @@ struct OnboardingView: View {
                             )
                             .environmentObject(purchaseModel)
                         default:
+                            // safety fallback
                             Text("Something went wrong")
                                 .foregroundColor(.black)
                         }

@@ -85,10 +85,11 @@ struct PurchaseView: View {
                             .foregroundColor(.white)
 
                         VStack(alignment: .leading, spacing: 10) {
-                            FeatureRow(text: "Understand sperm health instantly")
-                            FeatureRow(text: "Track all tests with clear insights")
-                            FeatureRow(text: "Ask AI any fertility question")
-                            FeatureRow(text: "Remove all paywalls instantly")
+                            FeatureRow(text: "Instant health insights")
+                            FeatureRow(text: "Track all tests easily")
+                            FeatureRow(text: "AI answers your questions")
+                            FeatureRow(text: "Unlock the 74-day challenge")
+                            FeatureRow(text: "Remove all paywalls")
                         }
                         .padding(.top, 6)
                         .padding(.horizontal, 40)
@@ -102,36 +103,36 @@ struct PurchaseView: View {
 
                             VStack(spacing: 12) {
 
-                                // MARK: - LIFETIME
+                                // MARK: - WEEKLY
                                 PackageButton(
-                                    title: "Lifetime Plan",
-                                    leftPrice: "$17.99",
-                                    rightPrice: "BEST VALUE",
-                                    rightBackground: .red,
-                                    isSelected: selectedPackage?.identifier == "lifetime_pro",
+                                    title: "Weekly Plan",
+                                    leftPrice: "$4.99 per week",
+                                    rightPrice: "FLEXIBLE",
+                                    rightBackground: .clear,
+                                    isSelected: selectedPackage?.identifier == "fathr_weekly",
                                     highlightColor: fathrGreen
                                 ) {
                                     Haptics.selection()
-                                    selectedPackage = offering.package(identifier: "lifetime_pro")
+                                    selectedPackage = offering.package(identifier: "fathr_weekly")
                                 }
                                 .frame(maxWidth: min(geometry.size.width * 0.85, 400))
 
-                                // MARK: - WEEKLY
+                                // MARK: - YEARLY
                                 PackageButton(
-                                    title: "3-Day Trial",
-                                    leftPrice: "then $5.99 per week",
-                                    rightPrice: "SHORT TERM",
-                                    rightBackground: .clear,
-                                    isSelected: selectedPackage?.identifier == "weekly_pro_trial",
+                                    title: "Yearly Plan",
+                                    leftPrice: "$29.99 per year",
+                                    rightPrice: "BEST VALUE",
+                                    rightBackground: .red,
+                                    isSelected: selectedPackage?.identifier == "fathr_yearly",
                                     highlightColor: fathrGreen
                                 ) {
                                     Haptics.selection()
-                                    selectedPackage = offering.package(identifier: "weekly_pro_trial")
+                                    selectedPackage = offering.package(identifier: "fathr_yearly")
                                 }
                                 .frame(maxWidth: min(geometry.size.width * 0.85, 400))
                             }
 
-                            Text("NO PAYMENT REQUIRED TODAY")
+                            Text("No commitment, cancel anytime.")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.top, 6)
@@ -210,7 +211,8 @@ struct PurchaseView: View {
             .onAppear {
                 Task {
                     await purchaseModel.fetchOfferings()
-                    selectedPackage = purchaseModel.currentOffering?.package(identifier: "lifetime_pro")
+                    // Default selected package = Weekly
+                    selectedPackage = purchaseModel.currentOffering?.package(identifier: "fathr_weekly")
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     withAnimation { showCloseButton = true }
                 }
@@ -296,4 +298,3 @@ struct PackageButton: View {
         .buttonStyle(.plain)
     }
 }
-

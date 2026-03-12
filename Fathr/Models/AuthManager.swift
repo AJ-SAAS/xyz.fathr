@@ -4,10 +4,13 @@ import Foundation
 
 class AuthManager: ObservableObject {
     @Published var isSignedIn: Bool = false
+    @Published var isGuest: Bool = false
     @Published var errorMessage: String?
+
     var currentUserID: String? {
         Auth.auth().currentUser?.uid
     }
+
     private var authListenerHandle: AuthStateDidChangeListenerHandle?
     private let testStore: TestStore
 
@@ -21,6 +24,12 @@ class AuthManager: ObservableObject {
                 self?.isSignedIn = isSignedIn
             }
         }
+    }
+
+    func continueAsGuest() {
+        print("AuthManager: Continuing as guest")
+        isGuest = true
+        isSignedIn = true
     }
 
     func checkAuthState() {
@@ -40,6 +49,7 @@ class AuthManager: ObservableObject {
             }
             if let result = result {
                 self?.isSignedIn = true
+                self?.isGuest = false
                 print("AuthManager: Sign-in successful, isSignedIn = true, user = \(result.user.uid)")
             }
         }
@@ -56,6 +66,7 @@ class AuthManager: ObservableObject {
             }
             if let result = result {
                 self?.isSignedIn = true
+                self?.isGuest = false
                 print("AuthManager: Sign-up successful, user = \(result.user.uid)")
             }
         }
@@ -80,6 +91,7 @@ class AuthManager: ObservableObject {
         do {
             try Auth.auth().signOut()
             isSignedIn = false
+            isGuest = false
             print("AuthManager: Signed out successfully")
         } catch {
             errorMessage = "Failed to sign out: \(error.localizedDescription)"

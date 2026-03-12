@@ -47,7 +47,7 @@ struct RootView: View {
         .onChange(of: authManager.isSignedIn) { _, newValue in
             print("RootView: isSignedIn changed to \(newValue)")
             if newValue {
-                isLoading = true // Wait for onboarding status
+                isLoading = true
                 showAuth = false
                 showSplash = false
                 showSignUpScreen = false
@@ -59,9 +59,10 @@ struct RootView: View {
         }
         .onAppear {
             print("RootView: onAppear, checking auth state")
-            // Delay to ensure Firebase auth state is ready
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 print("RootView: Auth state check, isSignedIn: \(authManager.isSignedIn)")
+
                 if authManager.isSignedIn {
                     loadOnboardingStatus()
                 } else {
@@ -73,21 +74,37 @@ struct RootView: View {
     }
 
     private func loadOnboardingStatus(retryCount: Int = 0, maxRetries: Int = 3) {
+
+        // ⭐️ Guest mode handling
+        if authManager.isGuest {
+            print("RootView: Guest user detected, skipping Firestore onboarding check")
+            hasCompletedOnboarding = false
+            isLoading = false
+            return
+        }
+
         guard let userId = authManager.currentUserID else {
             print("RootView: No user ID, setting isLoading = false, hasCompletedOnboarding = false")
             isLoading = false
             hasCompletedOnboarding = false
             return
         }
+
         print("RootView: Loading onboarding status for user \(userId), attempt \(retryCount + 1)")
+
         Firestore.firestore().collection("users").document(userId).getDocument { snapshot, error in
+
             if let error = error {
+
                 print("RootView: Error loading onboarding status: \(error.localizedDescription)")
+
                 if retryCount < maxRetries {
                     print("RootView: Retrying loadOnboardingStatus, attempt \(retryCount + 2)")
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         loadOnboardingStatus(retryCount: retryCount + 1, maxRetries: maxRetries)
                     }
+
                     return
                 } else {
                     print("RootView: Max retries reached, defaulting to hasCompletedOnboarding = false")
@@ -96,26 +113,36 @@ struct RootView: View {
                     return
                 }
             }
-            if let data = snapshot?.data(), let completed = data["hasCompletedOnboarding"] as? Bool {
+
+            if let data = snapshot?.data(),
+               let completed = data["hasCompletedOnboarding"] as? Bool {
+
                 print("RootView: Loaded hasCompletedOnboarding = \(completed) from Firestore")
                 hasCompletedOnboarding = completed
+
             } else {
+
                 print("RootView: No onboarding data found, defaulting to false")
                 hasCompletedOnboarding = false
             }
+
             isLoading = false
         }
     }
 
     private func saveOnboardingStatus() {
+
         guard let userId = authManager.currentUserID else {
             print("RootView: No user ID, cannot save onboarding status")
             return
         }
+
         print("RootView: Saving hasCompletedOnboarding = true for user \(userId)")
+
         Firestore.firestore().collection("users").document(userId).setData([
             "hasCompletedOnboarding": true
         ], merge: true) { error in
+
             if let error = error {
                 print("RootView: Error saving onboarding status: \(error.localizedDescription)")
             } else {

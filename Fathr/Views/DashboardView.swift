@@ -416,8 +416,9 @@ struct FertilitySnapshotView: View {
         if !testStore.tests.isEmpty {
             let averages = calculateAverages()
             let scoreStatus = averages.overallScore >= 70 ? "good" : "bad"
+            
             HStack(alignment: .top, spacing: 16) {
-                // Your Fathr Score Card
+                // Fathr Score Card (always visible)
                 VStack(alignment: .center, spacing: 8) {
                     Text("Your Fathr Score")
                         .font(.headline)
@@ -440,12 +441,13 @@ struct FertilitySnapshotView: View {
                 )
                 .shadow(color: .gray.opacity(0.1), radius: 5)
 
-                // Fertility Snapshot Card
+                // Fertility Snapshot Card (teaser / paywall)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Fertility Snapshot")
                         .font(.headline)
                         .fontDesign(.rounded)
-                        .foregroundColor(.black) // BLACK
+                        .foregroundColor(.black)
+                    
                     if testStore.tests.first != nil {
                         Button(action: {
                             if purchaseModel.isSubscribed {
@@ -454,14 +456,20 @@ struct FertilitySnapshotView: View {
                                 showPaywall = true
                             }
                         }) {
-                            Text("View Full Analysis")
-                                .font(.subheadline.bold())
-                                .fontDesign(.rounded)
-                                .foregroundColor(.white)
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .background(Color.blue)
-                                .cornerRadius(8)
+                            HStack {
+                                Text("View Full Analysis")
+                                    .font(.subheadline.bold())
+                                    .fontDesign(.rounded)
+                                    .foregroundColor(.white)
+                                if !purchaseModel.isSubscribed {
+                                    Image(systemName: "lock.fill")
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.blue)
+                            .cornerRadius(8)
                         }
                         .accessibilityLabel("View Full Analysis")
                     }
@@ -472,6 +480,18 @@ struct FertilitySnapshotView: View {
                 .background(Color(red: 0.7, green: 0.9, blue: 1.0)) // LIGHT BLUE
                 .cornerRadius(15)
                 .shadow(color: .gray.opacity(0.1), radius: 5)
+                // Soft overlay for non-subscribers
+                .overlay(
+                    Group {
+                        if !purchaseModel.isSubscribed {
+                            Color.white.opacity(0.5)
+                                .cornerRadius(15)
+                            Image(systemName: "lock.fill")
+                                .font(.largeTitle)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                )
             }
             .padding(.horizontal)
             .frame(maxWidth: .infinity)
@@ -688,15 +708,22 @@ struct RecentTestsSection: View {
                         }
                     }) {
                         TestCardView(test: test)
+                            // Soft overlay for free users
+                            .overlay(
+                                Group {
+                                    if !purchaseModel.isSubscribed {
+                                        Color.white.opacity(0.5)
+                                            .cornerRadius(10)
+                                        Image(systemName: "lock.fill")
+                                            .font(.title)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            )
                     }
                     .padding(.horizontal)
                 }
-                .onAppear {
-                    print("RecentTestsSection: \(testStore.tests.count) tests")
-                    for test in testStore.tests {
-                        print("Test: ID: \(test.id ?? "nil"), analysisStatus: \(test.analysisStatus), overallStatus: \(test.overallStatus), Date: \(test.date), Concentration: \(test.spermConcentration ?? 0), Motility: \(test.totalMobility ?? 0)")
-                    }
-                }
+
                 if testStore.tests.count > 5 {
                     Button(action: {
                         if purchaseModel.isSubscribed {

@@ -21,7 +21,7 @@ struct AIChatView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {  // FIXED: DispatchQueue
                     let welcome = """
-                    Hi! I’m your dedicated Fathr Wellness Coach.
+                    Hi! I’m your Fathr Wellness Coach.
 
                     I can help you with:
                     • Understand sperm test results (motility, count, etc.)
@@ -31,7 +31,7 @@ struct AIChatView: View {
 
                     General tips only — talk to your doctor.
 
-                    What’s on your mind?
+                    What’s on your mind today?
                     """
                     viewModel.messages.append(AIChatViewModel.Message(text: welcome, isUser: false))
                     viewModel.isLoading = false
@@ -145,7 +145,7 @@ struct AIChatView: View {
     // MARK: - Input Bar
     private var inputBar: some View {
         HStack(alignment: .center, spacing: 8) {
-            TextField("Ask anything about fertility...", text: $viewModel.inputText)
+            TextField("Ask about fertility wellness tips...", text: $viewModel.inputText)
                 .textFieldStyle(PlainTextFieldStyle())
                 .padding()
                 .background(Color.white)

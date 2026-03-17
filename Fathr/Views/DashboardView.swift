@@ -8,11 +8,17 @@ enum Trend {
 
 extension Color {
     func darker(by percentage: Double) -> Color {
-        let components = UIColor(self).cgColor.components ?? [0, 0, 0, 1]
-        let red = max(components[0] - CGFloat(percentage), 0)
-        let green = max(components[1] - CGFloat(percentage), 0)
-        let blue = max(components[2] - CGFloat(percentage), 0)
-        return Color(UIColor(red: red, green: green, blue: blue, alpha: components[3]))
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        return Color(UIColor(
+            red: max(red - CGFloat(percentage), 0),
+            green: max(green - CGFloat(percentage), 0),
+            blue: max(blue - CGFloat(percentage), 0),
+            alpha: alpha
+        ))
     }
 }
 
@@ -22,6 +28,7 @@ struct DashboardView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showInput = false
     @State private var showPaywall = false
+    @State private var showSignUp = false
     @AppStorage("lastTipDate") private var lastTipDate: String = ""
     @State private var checkedTips: [Int: Bool] = [:]
     @Binding var selectedTab: Int
@@ -30,11 +37,10 @@ struct DashboardView: View {
     @State private var isLoadingChallengeProgress = true
     @State private var navigateToChallenge = false
     @AppStorage("hasCompletedChallengeOnboarding") private var hasCompletedChallengeOnboarding = false
-    
-    // MARK: - Review System
+
     @AppStorage("fathr_lastReviewRequestDate") private var lastReviewRequestDate: String = ""
     private let reviewCooldownDays: Double = 30
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -47,43 +53,60 @@ struct DashboardView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.top, 16)
                             .padding(.bottom, 8)
-                        
+
                         WelcomeHeaderView()
-                        
-                        HStack(alignment: .center, spacing: 16) {
-                            Button {
-                                showInput = true
-                            } label: {
-                                AddTestCardView()
-                                    .frame(maxWidth: .infinity, maxHeight: 160)
+
+                        // Only show these cards when no tests exist
+                        if testStore.tests.isEmpty {
+                            HStack(alignment: .center, spacing: 16) {
+                                Button {
+                                    if authManager.isGuest {
+                                        showSignUp = true
+                                    } else {
+                                        showInput = true
+                                    }
+                                } label: {
+                                    AddTestCardView()
+                                        .frame(maxWidth: .infinity, maxHeight: 160)
+                                }
+                                .accessibilityLabel("Add a New Sperm Test")
+
+                                Button {
+                                    navigateToChallenge = true
+                                } label: {
+                                    SeventyFourDayResetCardView()
+                                        .frame(maxWidth: .infinity, maxHeight: 160)
+                                }
+                                .accessibilityLabel("74 Day Reset Challenge")
                             }
-                            .accessibilityLabel("Add a New Sperm Test")
-                            
-                            Button {
-                                navigateToChallenge = true
-                            } label: {
-                                SeventyFourDayResetCardView()
-                                    .frame(maxWidth: .infinity, maxHeight: 160)
-                            }
-                            .accessibilityLabel("74 Day Reset Challenge")
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
-                        
+
                         if !testStore.tests.isEmpty {
                             FertilitySnapshotView(
                                 selectedTab: $selectedTab,
                                 showPaywall: $showPaywall,
+                                showFullAnalysis: $showFullAnalysis,
+                                showInput: $showInput,
+                                showSignUp: $showSignUp,
+                                navigateToChallenge: $navigateToChallenge
+                            )
+
+                            CoreMetricsOverviewView()
+
+                            FertilitySnapshotBarView(
+                                showPaywall: $showPaywall,
                                 showFullAnalysis: $showFullAnalysis
                             )
-                            
-                            CoreMetricsOverviewView()
-                            
+
+                            ChallengePromptCard(navigateToChallenge: $navigateToChallenge)
+
                             RecentTestsSection(
                                 selectedTab: $selectedTab,
                                 showPaywall: $showPaywall,
                                 selectedTest: $selectedTest
                             )
-                            
+
                             if let latestTest = testStore.tests.first {
                                 let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
                                 MetricCardView(
@@ -97,7 +120,7 @@ struct DashboardView: View {
                                     isWinning: false
                                 )
                             }
-                            
+
                             DailyBoostTipsView(
                                 checkedTips: checkedTips,
                                 onTipToggle: { index in
@@ -111,7 +134,7 @@ struct DashboardView: View {
                                 selectedTest: $selectedTest
                             )
                         }
-                        
+
                         ArticlesView()
                         DisclaimerView()
                     }
@@ -127,6 +150,13 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showPaywall) {
                 PurchaseView(isPresented: $showPaywall, purchaseModel: purchaseModel)
+            }
+            .sheet(isPresented: $showSignUp) {
+                AuthView(onAuthSuccess: {
+                    showSignUp = false
+                })
+                .environmentObject(authManager)
+                .environmentObject(purchaseModel)
             }
             .navigationDestination(isPresented: $showFullAnalysis) {
                 if let latestTest = testStore.tests.first {
@@ -152,8 +182,6 @@ struct DashboardView: View {
             }
             .onChange(of: testStore.tests) { newTests in
                 guard let latest = newTests.first else { return }
-                
-                // Only trigger if latest test is from today
                 if Calendar.current.isDateInToday(latest.date) {
                     requestReviewIfEligible()
                 }
@@ -161,7 +189,6 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Challenge Destination View
     @ViewBuilder
     private func challengeDestinationView() -> some View {
         if isLoadingChallengeProgress {
@@ -179,7 +206,6 @@ struct DashboardView: View {
             ChallengeOnboardingView(
                 onComplete: {
                     hasCompletedChallengeOnboarding = true
-                    // Create full 74-day progress with real tasks
                     var days: [Int: TestStore.ChallengeDayProgress] = [:]
                     for day in 1...74 {
                         let dayTasks = ChallengeTasks.allDays
@@ -214,14 +240,12 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Load Challenge Progress
     private func loadChallengeProgress() {
         guard let userId = authManager.currentUserID else {
             print("DashboardView: No user ID found — skipping challenge progress load.")
             isLoadingChallengeProgress = false
             return
         }
-
         print("DashboardView: Fetching challenge progress for user: \(userId)")
         testStore.fetchChallengeProgress(userId: userId) { progress in
             DispatchQueue.main.async {
@@ -236,7 +260,6 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - Metrics Evaluation
     private func evaluateMetrics(for test: TestData) -> ([String], [String]) {
         var winningMetrics: [String] = []
         var improvementMetrics: [String] = []
@@ -279,9 +302,6 @@ struct DashboardView: View {
             improvementMetrics.append("Motility: \(Int(motility))% (Aim for ≥ 40% with zinc-rich foods like pumpkin seeds)")
         }
 
-        // Additional metric evaluation logic (concentration, morphology, DNA, semen, pH) remains unchanged
-        // ...
-
         if improvementMetrics.isEmpty {
             improvementMetrics.append("All metrics are excellent! Maintain with daily hydration and a nutrient-rich diet.")
         }
@@ -293,34 +313,29 @@ struct DashboardView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let currentDate = formatter.string(from: Date())
-        
         if lastTipDate != currentDate {
             checkedTips = [:]
             lastTipDate = currentDate
         }
     }
 
-    // MARK: - App Store Review Workflow
     private func requestReviewIfEligible() {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let todayString = formatter.string(from: Date())
-
         if let lastDate = formatter.date(from: lastReviewRequestDate),
            let cooldownDate = Calendar.current.date(byAdding: .day, value: Int(reviewCooldownDays), to: lastDate),
            cooldownDate > Date() {
             return
         }
-
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             SKStoreReviewController.requestReview(in: windowScene)
             lastReviewRequestDate = todayString
         }
     }
-    
+
     private func calculateTrend() -> Trend {
         guard testStore.tests.count > 1 else { return .none }
-        // Trend calculation logic unchanged
         return .none
     }
 
@@ -334,16 +349,17 @@ struct DashboardView: View {
     }
 }
 
+// MARK: - Add Test Card (UNCHANGED)
 struct AddTestCardView: View {
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "plus")
                 .font(.system(size: 20))
-                .foregroundColor(.black) // BLACK
+                .foregroundColor(.black)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("Add a New Sperm Test")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.black) // BLACK
+                .foregroundColor(.black)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -355,6 +371,7 @@ struct AddTestCardView: View {
     }
 }
 
+// MARK: - 74 Day Card (UNCHANGED)
 struct SeventyFourDayResetCardView: View {
     var body: some View {
         VStack(spacing: 8) {
@@ -367,7 +384,7 @@ struct SeventyFourDayResetCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text("74 Day Reset Challenge")
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.black) // BLACK
+                .foregroundColor(.black)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -379,6 +396,7 @@ struct SeventyFourDayResetCardView: View {
     }
 }
 
+// MARK: - Welcome Header (UNCHANGED)
 struct WelcomeHeaderView: View {
     var body: some View {
         HStack {
@@ -405,96 +423,164 @@ struct WelcomeHeaderView: View {
     }
 }
 
+// MARK: - Fertility Snapshot View (REDESIGNED)
 struct FertilitySnapshotView: View {
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
+    @EnvironmentObject var authManager: AuthManager
     @Binding var selectedTab: Int
     @Binding var showPaywall: Bool
     @Binding var showFullAnalysis: Bool
+    @Binding var showInput: Bool
+    @Binding var showSignUp: Bool
+    @Binding var navigateToChallenge: Bool
+
+    private func scoreLabel(for score: Double) -> String {
+        if score >= 70 { return "Looking strong" }
+        if score >= 50 { return "Room to improve" }
+        return "Let's get to work"
+    }
+
+    private func scoreColor(for score: Double) -> Color {
+        if score >= 70 { return Color.green.darker(by: 0.2) }
+        if score >= 50 { return Color.orange.darker(by: 0.1) }
+        return Color.orange.darker(by: 0.2)
+    }
 
     var body: some View {
         if !testStore.tests.isEmpty {
             let averages = calculateAverages()
-            let scoreStatus = averages.overallScore >= 70 ? "good" : "bad"
-            
-            HStack(alignment: .top, spacing: 16) {
-                // Fathr Score Card (always visible)
-                VStack(alignment: .center, spacing: 8) {
-                    Text("Your Fathr Score")
-                        .font(.headline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.black)
-                    Text(String(format: "%.1f", averages.overallScore))
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundColor(.black)
-                    Text(scoreStatus == "good" ? "In the fertile zone" : "Needs boosting")
-                        .font(.caption)
-                        .foregroundColor(scoreStatus == "good" ? Color.green.darker(by: 0.2) : Color.yellow.darker(by: 0.2))
-                }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: 160)
-                .background(Color.white)
-                .cornerRadius(15)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.black, lineWidth: 1)
-                )
-                .shadow(color: .gray.opacity(0.1), radius: 5)
+            let latest = testStore.tests[0]
 
-                // Fertility Snapshot Card (teaser / paywall)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Fertility Snapshot")
-                        .font(.headline)
-                        .fontDesign(.rounded)
+            HStack(alignment: .top, spacing: 12) {
+
+                // MARK: Score card
+                VStack(alignment: .center, spacing: 6) {
+                    Text("Your Fathr Score")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.gray)
+
+                    Text(String(format: "%.1f", averages.overallScore))
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
                         .foregroundColor(.black)
-                    
-                    if testStore.tests.first != nil {
-                        Button(action: {
-                            if purchaseModel.isSubscribed {
-                                showFullAnalysis = true
-                            } else {
-                                showPaywall = true
-                            }
-                        }) {
-                            HStack {
-                                Text("View Full Analysis")
-                                    .font(.subheadline.bold())
-                                    .fontDesign(.rounded)
-                                    .foregroundColor(.white)
-                                if !purchaseModel.isSubscribed {
-                                    Image(systemName: "lock.fill")
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(Color.blue)
-                            .cornerRadius(8)
+
+                    Text(scoreLabel(for: averages.overallScore))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(scoreColor(for: averages.overallScore))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(scoreColor(for: averages.overallScore).opacity(0.12))
+                        .cornerRadius(20)
+
+                    if let trend = calculateScoreTrend() {
+                        HStack(spacing: 3) {
+                            Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                .font(.system(size: 9, weight: .semibold))
+                            Text(String(format: "%+.1f from last test", trend))
+                                .font(.system(size: 9, weight: .semibold, design: .rounded))
                         }
-                        .accessibilityLabel("View Full Analysis")
+                        .foregroundColor(trend >= 0 ? Color.green.darker(by: 0.2) : .orange)
                     }
-                    Spacer()
+
+                    Divider().padding(.vertical, 2)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        ScoreChip(
+                            label: "Motility",
+                            value: latest.totalMobility.map { "\(Int($0))%" } ?? "—",
+                            good: (latest.totalMobility ?? 0) >= 40
+                        )
+                        ScoreChip(
+                            label: "Concentration",
+                            value: latest.spermConcentration.map { "\(Int($0)) M/mL" } ?? "—",
+                            good: (latest.spermConcentration ?? 0) >= 16
+                        )
+                        ScoreChip(
+                            label: "Morphology",
+                            value: latest.morphologyRate.map { "\(Int($0))%" } ?? "—",
+                            good: (latest.morphologyRate ?? 0) >= 4
+                        )
+                        ScoreChip(
+                            label: "DNA frag.",
+                            value: latest.dnaFragmentationRisk.map { "\($0)%" } ?? "—",
+                            good: (latest.dnaFragmentationRisk ?? 100) < 30
+                        )
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: 160)
-                .background(Color(red: 0.7, green: 0.9, blue: 1.0)) // LIGHT BLUE
-                .cornerRadius(15)
-                .shadow(color: .gray.opacity(0.1), radius: 5)
-                // Soft overlay for non-subscribers
+                .padding(14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+                .cornerRadius(16)
                 .overlay(
-                    Group {
-                        if !purchaseModel.isSubscribed {
-                            Color.white.opacity(0.5)
-                                .cornerRadius(15)
-                            Image(systemName: "lock.fill")
-                                .font(.largeTitle)
-                                .foregroundColor(.gray)
-                        }
-                    }
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
                 )
+
+                // MARK: Action cards column (now fully tappable)
+                VStack(spacing: 10) {
+                    Button {
+                        if authManager.isGuest {
+                            showSignUp = true
+                        } else {
+                            showInput = true
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white)
+                                    .frame(width: 28, height: 28)
+                                Image(systemName: "plus")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(Color(red: 0.09, green: 0.37, blue: 0.65))
+                            }
+                            Text("Add sperm test")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(red: 0.04, green: 0.17, blue: 0.33))
+                            Text("Log your results")
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundColor(Color(red: 0.09, green: 0.37, blue: 0.65))
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .background(Color(red: 0.7, green: 0.9, blue: 1.0))
+                        .cornerRadius(14)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add a New Sperm Test")
+
+                    Button {
+                        navigateToChallenge = true
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.white)
+                                    .frame(width: 28, height: 28)
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color(red: 0.14, green: 0.42, blue: 0.07))
+                            }
+                            Text("74-day challenge")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundColor(Color(red: 0.09, green: 0.20, blue: 0.02))
+                            Text("Keep the streak")
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundColor(Color(red: 0.14, green: 0.42, blue: 0.07))
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .background(Color(red: 0.91, green: 0.95, blue: 0.87))
+                        .cornerRadius(14)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("74 Day Reset Challenge")
+                }
+                .frame(maxWidth: .infinity)
             }
+            .frame(minHeight: 220)
             .padding(.horizontal)
-            .frame(maxWidth: .infinity)
         }
     }
 
@@ -512,7 +598,6 @@ struct FertilitySnapshotView: View {
         guard count > 0 else {
             return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: 0, spermAnalysis: 0)
         }
-
         let totalMotility = testStore.tests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
         let totalConcentration = testStore.tests.reduce(0.0) {
             let conc = $1.spermConcentration ?? 0.0
@@ -530,16 +615,13 @@ struct FertilitySnapshotView: View {
             return $0 + score
         }
         let totalSpermAnalysis = testStore.tests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
-
         let avgMotility = totalMotility / Double(count)
         let avgConcentration = totalConcentration / Double(count)
         let avgMorphology = totalMorphology / Double(count)
         let avgDnaFragmentation = totalDnaFragmentation / Double(count)
         let avgSpermAnalysis = totalSpermAnalysis / Double(count)
-
         let overallScore = (0.35 * avgMotility) + (0.30 * avgConcentration) + (0.15 * avgMorphology) +
                            (0.10 * avgDnaFragmentation) + (0.10 * avgSpermAnalysis)
-
         return Averages(
             overallScore: overallScore,
             motility: avgMotility,
@@ -552,85 +634,326 @@ struct FertilitySnapshotView: View {
 
     private func calculateAnalysisScore(_ test: TestData) -> Double {
         var score: Double = 0
-        
         if test.appearance == .normal { score += 25 }
         if test.liquefaction == .normal { score += 25 }
         if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
         if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
-        
         return score
+    }
+
+    private func calculateScoreTrend() -> Double? {
+        guard testStore.tests.count >= 2 else { return nil }
+        let latest = testStore.tests[0]
+        let previous = testStore.tests[1]
+        func score(for test: TestData) -> Double {
+            let motility = min((test.totalMobility ?? 0.0) * 2.5, 100.0)
+            let conc = test.spermConcentration ?? 0.0
+            let concentration = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+            let morph = test.morphologyRate ?? 0.0
+            let morphology = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+            let dna = Double(test.dnaFragmentationRisk ?? 0)
+            let dnaScore = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+            let analysis = calculateAnalysisScore(test)
+            return (0.35 * motility) + (0.30 * min(concentration, 100)) +
+                   (0.15 * min(morphology, 100)) + (0.10 * dnaScore) + (0.10 * analysis)
+        }
+        return score(for: latest) - score(for: previous)
     }
 }
 
+// MARK: - Score Chip
+private struct ScoreChip: View {
+    let label: String
+    let value: String
+    let good: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(good ? Color(red: 0.39, green: 0.60, blue: 0.13) : Color(red: 0.94, green: 0.62, blue: 0.15))
+                .frame(width: 6, height: 6)
+            Text(value)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundColor(.black)
+            Text(label)
+                .font(.system(size: 11, design: .rounded))
+                .foregroundColor(.gray)
+        }
+    }
+}
+
+// MARK: - Core Metrics Overview (REDESIGNED — 2x2 grid)
 struct CoreMetricsOverviewView: View {
     @EnvironmentObject var testStore: TestStore
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("How You're Doing")
-                .font(.title2)
-                .fontDesign(.rounded)
-                .fontWeight(.bold)
-                .foregroundColor(.black)
+        if let latest = testStore.tests.first {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Key metrics")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(.gray)
+                    .padding(.horizontal)
+
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ], spacing: 10) {
+                    MetricTileView(
+                        label: "Motility",
+                        value: latest.totalMobility ?? 0,
+                        maxValue: 100,
+                        unit: "%",
+                        whoMin: 40,
+                        whoMax: 100
+                    )
+                    MetricTileView(
+                        label: "Concentration",
+                        value: latest.spermConcentration ?? 0,
+                        maxValue: 100,
+                        unit: "M/mL",
+                        whoMin: 16,
+                        whoMax: 100
+                    )
+                    MetricTileView(
+                        label: "Morphology",
+                        value: latest.morphologyRate ?? 0,
+                        maxValue: 100,
+                        unit: "%",
+                        whoMin: 4,
+                        whoMax: 100
+                    )
+                    MetricTileView(
+                        label: "DNA frag.",
+                        value: Double(latest.dnaFragmentationRisk ?? 0),
+                        maxValue: 100,
+                        unit: "%",
+                        whoMin: 0,
+                        whoMax: 30,
+                        lowerIsBetter: true
+                    )
+                }
                 .padding(.horizontal)
-            
-            if let latestTest = testStore.tests.first {
-                ProgressBarView(
-                    label: "Analysis",
-                    value: min(calculateAnalysisScore(latestTest), 100),
-                    maxValue: 100
-                )
-                
-                ProgressBarView(
-                    label: "Motility",
-                    value: min(latestTest.totalMobility ?? 0, 100),
-                    maxValue: 100
-                )
-                
-                ProgressBarView(
-                    label: "Concentration",
-                    value: min(latestTest.spermConcentration ?? 0, 100),
-                    maxValue: 100
-                )
-                
-                ProgressBarView(
-                    label: "Morphology",
-                    value: min(latestTest.morphologyRate ?? 0, 100),
-                    maxValue: 100
-                )
-                
-                Text("Scores are based on WHO standards and your most recent test.")
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .foregroundColor(.gray)
-                    .padding(.horizontal)
-            } else {
-                Text("No test data available.")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .padding(.horizontal)
             }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 8)
     }
-    
-    private func calculateAnalysisScore(_ test: TestData) -> Double {
+}
+
+// MARK: - Metric Tile
+struct MetricTileView: View {
+    let label: String
+    let value: Double
+    let maxValue: Double
+    let unit: String
+    let whoMin: Double
+    let whoMax: Double
+    var lowerIsBetter: Bool = false
+
+    private var isGood: Bool {
+        lowerIsBetter ? value <= whoMax : value >= whoMin
+    }
+
+    private var barColor: Color {
+        isGood ? Color(red: 0.39, green: 0.60, blue: 0.13) : Color(red: 0.94, green: 0.62, blue: 0.15)
+    }
+
+    private var statusLabel: String {
+        isGood ? "On track" : "Room to improve"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 13, design: .rounded))
+                .foregroundColor(.gray)
+
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text(value == value.rounded() ? "\(Int(value))" : String(format: "%.1f", value))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
+                Text(unit)
+                    .font(.system(size: 13, design: .rounded))
+                    .foregroundColor(.gray)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.gray.opacity(0.12))
+                        .frame(height: 4)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * CGFloat(min(value / maxValue, 1.0)), height: 4)
+                }
+            }
+            .frame(height: 4)
+
+            Text(statusLabel)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundColor(isGood ? Color(red: 0.23, green: 0.43, blue: 0.07) : Color(red: 0.52, green: 0.31, blue: 0.04))
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.gray.opacity(0.12), lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Fertility Snapshot Bar Card
+struct FertilitySnapshotBarView: View {
+    @EnvironmentObject var testStore: TestStore
+    @EnvironmentObject var purchaseModel: PurchaseModel
+    @Binding var showPaywall: Bool
+    @Binding var showFullAnalysis: Bool
+
+    private func analysisScore(for test: TestData) -> Double {
         var score: Double = 0
-        
         if test.appearance == .normal { score += 25 }
         if test.liquefaction == .normal { score += 25 }
         if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
         if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
-        
         return score
+    }
+
+    var body: some View {
+        if let latest = testStore.tests.first {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Fertility snapshot")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.black)
+
+                SnapshotBarRow(label: "Analysis", value: min(analysisScore(for: latest), 100), maxValue: 100)
+                SnapshotBarRow(label: "Motility", value: min(latest.totalMobility ?? 0, 100), maxValue: 100)
+                SnapshotBarRow(label: "Concentration", value: min(latest.spermConcentration ?? 0, 100), maxValue: 100)
+                SnapshotBarRow(label: "Morphology", value: min(latest.morphologyRate ?? 0, 100), maxValue: 100)
+
+                Divider()
+
+                Button(action: {
+                    if purchaseModel.isSubscribed {
+                        showFullAnalysis = true
+                    } else {
+                        showPaywall = true
+                    }
+                }) {
+                    Text("View full analysis →")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.vertical, 13)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .cornerRadius(20)
+                }
+                .accessibilityLabel("View Full Analysis")
+            }
+            .padding(14)
+            .background(Color.white)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.gray.opacity(0.12), lineWidth: 0.5)
+            )
+            .padding(.horizontal)
+        }
     }
 }
 
+// MARK: - Snapshot Bar Row
+private struct SnapshotBarRow: View {
+    let label: String
+    let value: Double
+    let maxValue: Double
+
+    private var barColor: Color {
+        value > 75 ? Color(red: 0.39, green: 0.60, blue: 0.13) : Color(red: 0.94, green: 0.62, blue: 0.15)
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(label)
+                .font(.system(size: 12, design: .rounded))
+                .foregroundColor(.gray)
+                .frame(width: 90, alignment: .leading)
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(height: 5)
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * CGFloat(min(value / maxValue, 1.0)), height: 5)
+                }
+            }
+            .frame(height: 5)
+
+            Text("\(Int(value))")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundColor(.black)
+                .frame(width: 28, alignment: .trailing)
+        }
+    }
+}
+
+// MARK: - Challenge Prompt Card
+struct ChallengePromptCard: View {
+    @EnvironmentObject var testStore: TestStore
+    @Binding var navigateToChallenge: Bool
+
+    var body: some View {
+        Button(action: { navigateToChallenge = true }) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 40, height: 40)
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color(red: 0.98, green: 0.78, blue: 0.46))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("74-day reset challenge")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    if let startDate = testStore.challengeProgress?.startDate {
+                        let day = Calendar.current.dateComponents([.day], from: startDate, to: Date()).day ?? 0
+                        let remaining = max(74 - day, 0)
+                        Text("Day \(day + 1) · \(remaining) days remaining")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundColor(Color.white.opacity(0.6))
+                    } else {
+                        Text("Start your journey today")
+                            .font(.system(size: 11, design: .rounded))
+                            .foregroundColor(Color.white.opacity(0.6))
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.white.opacity(0.4))
+            }
+            .padding(14)
+            .background(Color.black)
+            .cornerRadius(16)
+            .padding(.horizontal)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("74 Day Reset Challenge")
+    }
+}
+
+// MARK: - Progress Bar View (UNCHANGED)
 struct ProgressBarView: View {
     let label: String
     let value: Double
     let maxValue: Double
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -661,16 +984,17 @@ struct ProgressBarView: View {
         }
         .padding(.horizontal)
     }
-    
+
     private var barColor: Color {
         value > 75 ? .green : value >= 25 ? .yellow : .orange
     }
-    
+
     private var statusText: String {
         value > 75 ? "Optimal" : value >= 25 ? "Needs boost" : "Low"
     }
 }
 
+// MARK: - Recent Tests Section (UNCHANGED)
 struct RecentTestsSection: View {
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
@@ -708,7 +1032,6 @@ struct RecentTestsSection: View {
                         }
                     }) {
                         TestCardView(test: test)
-                            // Soft overlay for free users
                             .overlay(
                                 Group {
                                     if !purchaseModel.isSubscribed {
@@ -747,6 +1070,7 @@ struct RecentTestsSection: View {
     }
 }
 
+// MARK: - Test Card View (UNCHANGED)
 struct TestCardView: View {
     let test: TestData
 
@@ -817,6 +1141,7 @@ struct TestCardView: View {
     }
 }
 
+// MARK: - Daily Boost Tips (UNCHANGED)
 struct DailyBoostTipsView: View {
     let checkedTips: [Int: Bool]
     let onTipToggle: (Int) -> Void
@@ -862,22 +1187,20 @@ struct DailyBoostTipsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let currentDate = formatter.string(from: Date())
-
-        let seed = currentDate.hashValue
+        let seed = Int(currentDate.replacingOccurrences(of: "-", with: "")) ?? 0
         var random = SeededRandomGenerator(seed: seed)
         var indices = Array(0..<DailyBoostTips.tips.count)
         var selectedIndices: [Int] = []
-
         for _ in 0..<3 {
             guard !indices.isEmpty else { break }
             let randomIndex = Int(random.next() % UInt64(indices.count))
             selectedIndices.append(indices.remove(at: randomIndex))
         }
-
         return selectedIndices.sorted()
     }
 }
 
+// MARK: - Disclaimer (UNCHANGED)
 struct DisclaimerView: View {
     var body: some View {
         Text("Visualizations are based on WHO 6th Edition standards for informational purposes only. Fathr is not a medical device. Consult a doctor for fertility concerns.")
@@ -890,6 +1213,7 @@ struct DisclaimerView: View {
     }
 }
 
+// MARK: - Metric Card (UNCHANGED)
 struct MetricCardView: View {
     let title: String
     let metrics: [String]
@@ -929,6 +1253,7 @@ struct MetricCardView: View {
     }
 }
 
+// MARK: - Daily Boost Tips Data (UNCHANGED)
 struct DailyBoostTips {
     static let tips = [
         "Drink at least 2L of water today.",
@@ -950,7 +1275,7 @@ struct DailyBoostTips {
         "Replace sugary snacks with fruit today.",
         "Skip porn for the day — dopamine reset.",
         "Avoid any exposure to pesticides (wash veggies well).",
-        "Don’t microwave food in plastic containers.",
+        "Don't microwave food in plastic containers.",
         "Focus on chewing your food slowly today.",
         "Avoid screen time 30 minutes before bed.",
         "Switch from soda to sparkling water.",
@@ -958,7 +1283,7 @@ struct DailyBoostTips {
         "Eat fatty fish (like salmon) at least once this week.",
         "Add L-carnitine supplement to your routine — boosts sperm movement.",
         "Do 20 squats today — improves blood flow to the pelvic region.",
-        "Avoid trans fats — they’re lethal to motility.",
+        "Avoid trans fats — they're lethal to motility.",
         "Try antioxidant-rich berries today (blueberries, strawberries).",
         "Avoid bike rides longer than 30 minutes today.",
         "Eat Brazil nuts for selenium to support sperm count.",
@@ -968,7 +1293,7 @@ struct DailyBoostTips {
         "Try a short cold shower (30s–1min) to stimulate testosterone.",
         "Eat foods rich in folate: spinach, lentils, avocado.",
         "Avoid processed meats today.",
-        "Don’t skip meals — your body needs fuel to build quality sperm.",
+        "Don't skip meals — your body needs fuel to build quality sperm.",
         "Take a Vitamin C supplement today.",
         "Cook dinner using garlic or turmeric — both have fertility benefits.",
         "Avoid stress triggers today — even brief stress spikes affect sperm DNA.",
@@ -976,7 +1301,7 @@ struct DailyBoostTips {
         "Stay off your phone for the first hour after waking.",
         "Sleep with blackout curtains or eye mask.",
         "Eat dark chocolate with high cocoa content — supports antioxidants.",
-        "Today’s goal: no sugar at all. Focus on clean eating.",
+        "Today's goal: no sugar at all. Focus on clean eating.",
         "Journal for 5 minutes before bed — lower cortisol = better sperm.",
         "No alcohol, no screens after 8pm — discipline wins.",
         "Do deep breathing: 4 seconds in, 4 out. Repeat 10 times.",
@@ -984,6 +1309,7 @@ struct DailyBoostTips {
     ]
 }
 
+// MARK: - Seeded Random Generator (UNCHANGED)
 struct SeededRandomGenerator {
     private var seed: UInt64
     private var state: UInt64
@@ -999,6 +1325,7 @@ struct SeededRandomGenerator {
     }
 }
 
+// MARK: - Preview (UNCHANGED)
 struct DashboardView_Previews: PreviewProvider {
     static var previews: some View {
         let testStore = TestStore()

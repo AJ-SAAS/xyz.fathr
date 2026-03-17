@@ -105,8 +105,8 @@ struct AuthView: View {
                     }
                 }
                 .background(Color.white.ignoresSafeArea())
-                .onChange(of: authManager.isSignedIn) { _, newValue in
-                    if newValue {
+                .onChange(of: authManager.isGuest) { _, newValue in
+                    if !newValue && authManager.isSignedIn {
                         onAuthSuccess()
                     }
                 }

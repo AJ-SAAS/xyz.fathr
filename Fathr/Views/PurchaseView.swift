@@ -23,58 +23,51 @@ extension Color {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
+
+        let a,r,g,b: UInt64
         switch hex.count {
         case 3:
-            (a, r, g, b) = (255,
-                            (int >> 8) * 17,
-                            (int >> 4 & 0xF) * 17,
-                            (int & 0xF) * 17)
+            (a,r,g,b) = (255,(int>>8)*17,(int>>4 & 0xF)*17,(int & 0xF)*17)
         case 6:
-            (a, r, g, b) = (255,
-                            int >> 16,
-                            int >> 8 & 0xFF,
-                            int & 0xFF)
+            (a,r,g,b) = (255,int>>16,int>>8 & 0xFF,int & 0xFF)
         case 8:
-            (a, r, g, b) = (int >> 24,
-                            int >> 16 & 0xFF,
-                            int >> 8 & 0xFF,
-                            int & 0xFF)
+            (a,r,g,b) = (int>>24,int>>16 & 0xFF,int>>8 & 0xFF,int & 0xFF)
         default:
-            (a, r, g, b) = (255, 0, 0, 0)
+            (a,r,g,b) = (255,0,0,0)
         }
 
         self.init(.sRGB,
-                  red: Double(r) / 255,
-                  green: Double(g) / 255,
-                  blue: Double(b) / 255,
-                  opacity: Double(a) / 255)
+                  red: Double(r)/255,
+                  green: Double(g)/255,
+                  blue: Double(b)/255,
+                  opacity: Double(a)/255)
     }
 }
 
+// MARK: - Purchase View
 struct PurchaseView: View {
+
     @Binding var isPresented: Bool
     @ObservedObject var purchaseModel: PurchaseModel
-    @State private var isPurchasing: Bool = false
-    @State private var selectedPackage: Package?
-    @State private var errorMessage: String?
-    @State private var showCloseButton: Bool = false
 
-    private let fathrGreen = Color("#2ECC71")
+    @State private var isPurchasing = false
+    @State private var selectedPackage: Package?
+    @State private var showCloseButton = false
 
     var body: some View {
+
         GeometryReader { geometry in
+
             ZStack {
-                Image("fathr-blue-bg-2")
-                    .resizable()
-                    .scaledToFill()
-                    .edgesIgnoringSafeArea(.all)
+
+                Color.white.ignoresSafeArea()
 
                 VStack(spacing: 0) {
 
-                    // MARK: - TOP
+                    // TOP SECTION
                     VStack(spacing: 14) {
-                        Image("fathr-plus-logo")
+
+                        Image("fathr-white-blue")
                             .resizable()
                             .scaledToFit()
                             .frame(width: min(geometry.size.width * 0.45, 230))
@@ -82,7 +75,7 @@ struct PurchaseView: View {
 
                         Text("PREMIUM ACCESS")
                             .font(.system(size: 25, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.black)
 
                         VStack(alignment: .leading, spacing: 10) {
                             FeatureRow(text: "Instant health insights")
@@ -93,57 +86,64 @@ struct PurchaseView: View {
                         }
                         .padding(.top, 6)
                         .padding(.horizontal, 40)
+
                     }
                     .frame(height: geometry.size.height * 0.45)
 
-                    // MARK: - BOTTOM
+                    // BOTTOM SECTION
                     VStack(spacing: 14) {
 
                         if let offering = purchaseModel.currentOffering {
 
+                            let weeklyPackage = offering.weekly
+                                ?? offering.availablePackages.first(where: { $0.storeProduct.productIdentifier == "fathr_weekly" })
+
+                            let yearlyPackage = offering.annual
+                                ?? offering.availablePackages.first(where: { $0.storeProduct.productIdentifier == "fathr_yearly" })
+
                             VStack(spacing: 12) {
 
-                                // MARK: - WEEKLY
-                                PackageButton(
-                                    title: "Weekly Plan",
-                                    leftPrice: "$4.99 per week",
-                                    rightPrice: "FLEXIBLE",
-                                    rightBackground: .clear,
-                                    isSelected: selectedPackage?.identifier == "fathr_weekly",
-                                    highlightColor: fathrGreen
-                                ) {
-                                    Haptics.selection()
-                                    selectedPackage = offering.package(identifier: "fathr_weekly")
+                                if let weekly = weeklyPackage {
+                                    PackageButton(
+                                        title: "Weekly Plan",
+                                        leftPrice: weekly.storeProduct.localizedPriceString + " per week",
+                                        rightPrice: "FLEXIBLE",
+                                        rightBackground: .clear,
+                                        isSelected: selectedPackage?.identifier == weekly.identifier,
+                                        highlightColor: .blue
+                                    ) {
+                                        Haptics.selection()
+                                        selectedPackage = weekly
+                                    }
+                                    .frame(maxWidth: min(geometry.size.width * 0.85, 400))
                                 }
-                                .frame(maxWidth: min(geometry.size.width * 0.85, 400))
 
-                                // MARK: - YEARLY
-                                PackageButton(
-                                    title: "Yearly Plan",
-                                    leftPrice: "$29.99 per year",
-                                    rightPrice: "BEST VALUE",
-                                    rightBackground: .red,
-                                    isSelected: selectedPackage?.identifier == "fathr_yearly",
-                                    highlightColor: fathrGreen
-                                ) {
-                                    Haptics.selection()
-                                    selectedPackage = offering.package(identifier: "fathr_yearly")
+                                if let yearly = yearlyPackage {
+                                    PackageButton(
+                                        title: "Yearly Plan",
+                                        leftPrice: yearly.storeProduct.localizedPriceString + " per year",
+                                        rightPrice: "BEST VALUE",
+                                        rightBackground: .red,
+                                        isSelected: selectedPackage?.identifier == yearly.identifier,
+                                        highlightColor: .blue
+                                    ) {
+                                        Haptics.selection()
+                                        selectedPackage = yearly
+                                    }
+                                    .frame(maxWidth: min(geometry.size.width * 0.85, 400))
                                 }
-                                .frame(maxWidth: min(geometry.size.width * 0.85, 400))
                             }
 
                             Text("No commitment, cancel anytime.")
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(.black)
                                 .padding(.top, 6)
                         }
 
-                        // MARK: - CTA
+                        // CTA BUTTON
                         Button {
                             guard let package = selectedPackage else { return }
-
                             Haptics.impact(.medium)
-
                             isPurchasing = true
                             Task {
                                 await purchaseModel.purchase(package: package) { _ in
@@ -151,21 +151,18 @@ struct PurchaseView: View {
                                 }
                             }
                         } label: {
-                            HStack {
-                                Text(isPurchasing ? "Processing..." : "Subscribe & Continue >")
-                                    .font(.system(size: 18, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: min(geometry.size.width * 0.85, 400))
-                            .padding(.vertical, 20)
-                            .background(selectedPackage == nil || isPurchasing ? Color.gray : fathrGreen)
-                            .cornerRadius(12)
-                            .shadow(color: fathrGreen.opacity(0.4), radius: 10, x: 0, y: 4)
+                            Text(isPurchasing ? "Processing..." : "Continue")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: min(geometry.size.width * 0.85, 400))
+                                .padding(.vertical, 20)
+                                .background(selectedPackage == nil || isPurchasing ? Color.gray : Color.black)
+                                .cornerRadius(12)
                         }
                         .disabled(selectedPackage == nil || isPurchasing)
                         .padding(.top, 10)
 
-                        // MARK: - FOOTER
+                        // FOOTER
                         HStack(spacing: 18) {
                             Button("Restore Purchases") {
                                 isPurchasing = true
@@ -176,47 +173,50 @@ struct PurchaseView: View {
                                 }
                             }
                             .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(.gray)
 
                             Link("Terms of Use",
                                  destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                                 .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(.gray)
 
                             Link("Privacy Policy",
                                  destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
                                 .font(.caption)
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(.gray)
                         }
                         .padding(.bottom, 22)
                     }
                     .frame(height: geometry.size.height * 0.55)
                 }
 
-                // MARK: - CLOSE BUTTON
+                // CLOSE BUTTON
                 if showCloseButton {
                     Button { isPresented = false } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(.black)
                             .frame(width: 28, height: 28)
-                            .background(
-                                Circle()
-                                    .fill(Color.white.opacity(0.5))
-                            )
+                            .background(Circle().fill(Color.black.opacity(0.08)))
                     }
                     .position(x: 28, y: 44)
                 }
             }
+
             .onAppear {
                 Task {
                     await purchaseModel.fetchOfferings()
-                    // Default selected package = Weekly
-                    selectedPackage = purchaseModel.currentOffering?.package(identifier: "fathr_weekly")
+
+                    if let offering = purchaseModel.currentOffering {
+                        selectedPackage = offering.weekly
+                            ?? offering.availablePackages.first(where: { $0.storeProduct.productIdentifier == "fathr_weekly" })
+                    }
+
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                     withAnimation { showCloseButton = true }
                 }
             }
+
             .onChange(of: purchaseModel.isSubscribed) { _, newValue in
                 if newValue { isPresented = false }
             }
@@ -224,17 +224,18 @@ struct PurchaseView: View {
     }
 }
 
-// MARK: - Feature Row
+// MARK: - Feature Row (UNCHANGED)
 struct FeatureRow: View {
+
     let text: String
 
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.white)
+                .foregroundColor(.blue)
             Text(text)
                 .font(.system(size: 15))
-                .foregroundColor(.white)
+                .foregroundColor(.black)
         }
         .padding(.vertical, 2)
     }
@@ -242,6 +243,7 @@ struct FeatureRow: View {
 
 // MARK: - Package Button
 struct PackageButton: View {
+
     var title: String
     var leftPrice: String
     var rightPrice: String
@@ -251,49 +253,63 @@ struct PackageButton: View {
     var action: () -> Void
 
     var body: some View {
+
         Button(action: action) {
+
             HStack {
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.black)
 
                     Text(leftPrice)
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(.system(size: 16))
+                        .foregroundColor(.black)
                 }
 
                 Spacer()
 
                 HStack(spacing: 6) {
-                    Text(rightPrice)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 10)
-                        .background(rightBackground)
-                        .cornerRadius(6)
+
+                    // Only show badge if there's a real background colour
+                    if rightBackground != .clear {
+                        Text(rightPrice)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .background(rightBackground)
+                            .cornerRadius(6)
+                    }
 
                     Circle()
-                        .fill(isSelected ? Color.green : Color.clear)
+                        .fill(isSelected ? Color.blue : Color.clear)
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.4), lineWidth: isSelected ? 0 : 1.2)
+                                .stroke(Color.gray.opacity(0.4), lineWidth: isSelected ? 0 : 1.2)
                         )
                         .frame(width: 22, height: 22)
+                        .overlay(
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .opacity(isSelected ? 1 : 0)
+                        )
                 }
             }
             .padding(.vertical, 20)
             .padding(.horizontal, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color.white.opacity(0.15) : Color.white.opacity(0.08))
+                    .fill(isSelected ? Color.blue.opacity(0.06) : Color.gray.opacity(0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? highlightColor : Color.white.opacity(0.3),
-                            lineWidth: isSelected ? 3 : 1.5)
+                    .stroke(isSelected ? Color.blue : Color.gray.opacity(0.3),
+                            lineWidth: isSelected ? 2 : 1)
             )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

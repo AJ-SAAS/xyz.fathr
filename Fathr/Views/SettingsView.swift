@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var testStore: TestStore
     @EnvironmentObject var purchaseModel: PurchaseModel
+    
     @State private var showingDeleteAccountAlert: Bool = false
     @State private var showingLogoutAlert: Bool = false
     @State private var showingPaywall: Bool = false
@@ -22,14 +23,12 @@ struct SettingsView: View {
                             Text("Email: \(user.email ?? "N/A")")
                                 .font(.system(.body))
                                 .padding(.vertical, 4)
-                                .accessibilityLabel("Email: \(user.email ?? "Not available")")
                         }
                         NavigationLink("Manage Account") {
                             ManageAccountView()
                         }
                         .font(.system(.body))
                         .padding(.vertical, 4)
-                        .accessibilityLabel("Manage Account")
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
 
@@ -41,7 +40,6 @@ struct SettingsView: View {
                                 .font(.system(.body))
                                 .foregroundColor(.green)
                                 .padding(.vertical, 4)
-                                .accessibilityLabel("You are a Premium Member")
                         } else {
                             Button("Unlock Fathr Plus 🚀") {
                                 showingPaywall = true
@@ -49,7 +47,6 @@ struct SettingsView: View {
                             .font(.system(.body))
                             .foregroundColor(.blue)
                             .padding(.vertical, 4)
-                            .accessibilityLabel("Go Premium")
                         }
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
@@ -61,38 +58,28 @@ struct SettingsView: View {
                         Link("Contact Support", destination: URL(string: "mailto:fathrapp@gmail.com")!)
                             .font(.system(.body))
                             .padding(.vertical, 4)
-                            .accessibilityLabel("Contact Support via Email")
 
                         Link("Visit Our Website", destination: URL(string: "https://www.fathr.xyz")!)
                             .font(.system(.body))
                             .padding(.vertical, 4)
-                            .accessibilityLabel("Visit Website")
 
-                        // 🆕 Share Feedback button
-                        Button(action: {
+                        Button("Share Your Feedback 💬") {
                             if let url = URL(string: "mailto:fathrapp@gmail.com?subject=Feedback%20on%20Fathr%20App") {
                                 UIApplication.shared.open(url)
                             }
-                        }) {
-                            Text("Share Your Feedback 💬")
-                                .font(.system(.body))
-                                .foregroundColor(.blue)
-                                .padding(.vertical, 4)
                         }
-                        .accessibilityLabel("Share Your Feedback via Email")
-                        
-                        // 🆕 Rate Us Button
-                        Button(action: {
+                        .font(.system(.body))
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 4)
+
+                        Button("Rate Us ⭐️") {
                             if let url = URL(string: "https://apps.apple.com/us/app/mens-fertility-tracker-fathr/id6745686037?action=write-review") {
                                 UIApplication.shared.open(url)
                             }
-                        }) {
-                            Text("Rate Us ⭐️")
-                                .font(.system(.body))
-                                .foregroundColor(.blue)
-                                .padding(.vertical, 4)
                         }
-                        .accessibilityLabel("Rate Fathr App on App Store")
+                        .font(.system(.body))
+                        .foregroundColor(.blue)
+                        .padding(.vertical, 4)
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
 
@@ -102,71 +89,54 @@ struct SettingsView: View {
                         Link("Terms of Use", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
                             .font(.system(.body))
                             .padding(.vertical, 4)
-                            .accessibilityLabel("Apple Terms of Use")
 
                         Link("Privacy Policy", destination: URL(string: "https://www.fathr.xyz/r/privacy")!)
                             .font(.system(.body))
                             .padding(.vertical, 4)
-                            .accessibilityLabel("Privacy Policy")
                     }
                     .padding(.horizontal, geometry.size.width > 600 ? 32 : 16)
 
                     // MARK: - In-App Purchases Section
                     Section(header: Text("In-App Purchases")
                         .font(.system(.headline, design: .default, weight: .bold))) {
-                        Button(action: {
+                        
+                        Button {
                             isRestoring = true
                             Task {
-                                await purchaseModel.restorePurchases { _ in
+                                let success = await purchaseModel.restorePurchases()
+                                await MainActor.run {
                                     isRestoring = false
+                                    if success {
+                                        print("✅ Restore successful")
+                                    }
                                 }
                             }
-                        }) {
+                        } label: {
                             HStack {
                                 Text("Restore Purchases")
-                                    .font(.system(.body))
                                 if isRestoring {
                                     ProgressView()
+                                        .padding(.leading, 8)
                                 }
                             }
                         }
                         .disabled(isRestoring)
                         .padding(.vertical, 4)
-                        .accessibilityLabel("Restore Purchases")
 
-                        Button(action: {
+                        Button {
                             if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                                 UIApplication.shared.open(url)
                             }
-                        }) {
+                        } label: {
                             Text("Manage Subscription")
                                 .font(.system(.body))
                         }
                         .padding(.vertical, 4)
-                        .accessibilityLabel("Manage Subscription")
 
                         if let error = purchaseModel.errorMessage {
                             Text("Error: \(error)")
                                 .font(.system(.subheadline))
                                 .foregroundColor(.red)
-                                .padding(.vertical, 4)
-                            Button("Retry Restore") {
-                                isRestoring = true
-                                Task {
-                                    await purchaseModel.restorePurchases { _ in
-                                        isRestoring = false
-                                    }
-                                }
-                            }
-                            .font(.system(.body))
-                            .foregroundColor(.blue)
-                            .padding(.vertical, 4)
-                        }
-
-                        if purchaseModel.isSubscribed {
-                            Text("Premium Unlocked ✅")
-                                .font(.system(.body))
-                                .foregroundColor(.green)
                                 .padding(.vertical, 4)
                         }
                     }
@@ -175,6 +145,7 @@ struct SettingsView: View {
                     // MARK: - Account Actions
                     Section(header: Text("Account Actions")
                         .font(.system(.headline, design: .default, weight: .bold))) {
+                        
                         Button("Log Out") {
                             showingLogoutAlert = true
                         }
@@ -227,6 +198,21 @@ struct SettingsView: View {
                 .background(Color.white.ignoresSafeArea())
             }
         }
+        // MARK: - Important: Listen for logout
+        .onChange(of: authManager.isSignedIn) { _, isSignedIn in
+            if !isSignedIn {
+                // Force navigation back to root / auth
+                dismissToRoot()
+            }
+        }
+    }
+
+    private func dismissToRoot() {
+        // This helps force the view hierarchy to go back to RootView
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else { return }
+        
+        window.rootViewController?.dismiss(animated: true)
     }
 
     // MARK: - Delete Account
@@ -252,18 +238,4 @@ struct SettingsView: View {
             }
         }
     }
-}
-
-#Preview("iPhone 14") {
-    SettingsView()
-        .environmentObject(AuthManager())
-        .environmentObject(TestStore())
-        .environmentObject(PurchaseModel())
-}
-
-#Preview("iPad Pro") {
-    SettingsView()
-        .environmentObject(AuthManager())
-        .environmentObject(TestStore())
-        .environmentObject(PurchaseModel())
 }

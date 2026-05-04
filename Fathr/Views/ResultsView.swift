@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Status Badge Helper
+// MARK: - Status Badge Helper (UNCHANGED)
 private func badgeColor(for status: String) -> Color {
     let s = status.lowercased()
     if s.contains("normal") || s.contains("typical") || s.contains("active") ||
@@ -10,7 +10,20 @@ private func badgeColor(for status: String) -> Color {
     return .orange
 }
 
-// MARK: - Progress Status Box (redesigned)
+// MARK: - Shared brand colors (ResultsView scope)
+private extension Color {
+    static let fGreen       = Color(red: 0.114, green: 0.620, blue: 0.459)   // #1D9E75
+    static let fGreenLight  = Color(red: 0.882, green: 0.961, blue: 0.933)   // #E1F5EE
+    static let fGreenDark   = Color(red: 0.059, green: 0.431, blue: 0.337)   // #0F6E56
+    static let fAmberLight  = Color(red: 0.980, green: 0.929, blue: 0.855)   // #FAEEDA
+    static let fAmberDark   = Color(red: 0.522, green: 0.310, blue: 0.043)   // #854F0B
+    static let fSurface     = Color(red: 0.965, green: 0.965, blue: 0.957)   // #F5F5F0
+    static let fBorder      = Color(red: 0.878, green: 0.878, blue: 0.863)   // #E0E0DC
+    static let fDark        = Color(red: 0.102, green: 0.102, blue: 0.102)   // #1A1A1A
+    static let fMuted       = Color(red: 0.373, green: 0.369, blue: 0.353)   // #5F5E5A
+}
+
+// MARK: - Progress Status Box
 struct ProgressStatusBox: View {
     let title: String
     let value: Double
@@ -34,6 +47,7 @@ struct ProgressStatusBox: View {
         self.isKeyMetric = isKeyMetric
     }
 
+    // MARK: - Computed (UNCHANGED logic)
     private var withinRange: Bool {
         guard let range = whoRange, isAvailable else { return true }
         return range.contains(value)
@@ -47,7 +61,7 @@ struct ProgressStatusBox: View {
     private var barColor: Color {
         guard isAvailable else { return .gray }
         if whoRange == nil { return Color(red: 0.22, green: 0.60, blue: 0.87) }
-        return withinRange ? Color(red: 0.39, green: 0.60, blue: 0.13) : Color(red: 0.94, green: 0.62, blue: 0.15)
+        return withinRange ? .fGreen : Color(red: 0.94, green: 0.62, blue: 0.15)
     }
 
     private var badgeText: String {
@@ -64,40 +78,37 @@ struct ProgressStatusBox: View {
             // Key metric label
             if isKeyMetric {
                 Text("KEY METRIC")
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(red: 0.09, green: 0.37, blue: 0.65))
-                    .padding(.bottom, 6)
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundColor(.fGreenDark)
+                    .tracking(0.8)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.fGreenLight)
+                    .cornerRadius(20)
+                    .padding(.bottom, 10)
             }
 
             // Title row + badge
             HStack(alignment: .center) {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
                 Spacer()
                 if isAvailable && whoRange != nil {
                     Text(badgeText)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundColor(
-                            withinRange
-                            ? Color(red: 0.23, green: 0.43, blue: 0.07)
-                            : Color(red: 0.52, green: 0.31, blue: 0.04)
-                        )
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(
-                            withinRange
-                            ? Color(red: 0.92, green: 0.95, blue: 0.87)
-                            : Color(red: 0.98, green: 0.93, blue: 0.85)
-                        )
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundColor(withinRange ? .fGreenDark : .fAmberDark)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3)
+                        .background(withinRange ? Color.fGreenLight : Color.fAmberLight)
                         .cornerRadius(20)
                 } else if !isAvailable {
                     Text("Not provided")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundColor(.secondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.1))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3)
+                        .background(Color.fSurface)
                         .cornerRadius(20)
                 }
             }
@@ -111,58 +122,59 @@ struct ProgressStatusBox: View {
                         .foregroundColor(.primary)
                     if !unit.isEmpty {
                         Text(unit)
-                            .font(.system(size: 13, design: .rounded))
+                            .font(.system(size: 12, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                 }
                 .padding(.bottom, 8)
 
-                // Progress bar
+                // Progress bar — taller, rounded
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(Color.gray.opacity(0.12))
-                            .frame(height: 6)
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.fSurface)
+                            .frame(height: 5)
+                        RoundedRectangle(cornerRadius: 4)
                             .fill(barColor)
-                            .frame(width: geo.size.width * CGFloat(min(value / maxValue, 1.0)), height: 6)
+                            .frame(width: geo.size.width * CGFloat(min(value / maxValue, 1.0)), height: 5)
                     }
                 }
-                .frame(height: 6)
-                .padding(.bottom, 6)
+                .frame(height: 5)
+                .padding(.bottom, 7)
 
                 // WHO range label
                 if let range = whoRange {
                     Text("WHO: \(String(format: "%.1f", range.lowerBound))–\(String(format: "%.1f", range.upperBound)) \(unit)")
-                        .font(.system(size: 11, design: .rounded))
-                        .foregroundColor(withinRange ? Color(red: 0.23, green: 0.43, blue: 0.07) : Color(red: 0.52, green: 0.31, blue: 0.04))
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(withinRange ? .fGreenDark : .fAmberDark)
                         .padding(.bottom, 6)
                 }
             }
 
-            // Description
+            // Description (UNCHANGED)
             Text(description)
-                .font(.system(size: 12, design: .rounded))
+                .font(.system(size: 11, design: .rounded))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
         .background(Color.white)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
                     isKeyMetric
-                    ? Color.blue.opacity(0.35)
-                    : (isAvailable && whoRange != nil && !withinRange
-                       ? Color.red.opacity(0.25)
-                       : Color.gray.opacity(0.15)),
-                    lineWidth: isKeyMetric || (isAvailable && whoRange != nil && !withinRange) ? 1.5 : 0.5
+                        ? Color.fGreen.opacity(0.4)
+                        : (isAvailable && whoRange != nil && !withinRange
+                           ? Color.fAmberDark.opacity(0.25)
+                           : Color.fBorder),
+                    lineWidth: isKeyMetric ? 1.0 : 0.5
                 )
         )
+        // UNCHANGED accessibility
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title): \(isAvailable ? "\(String(format: "%.1f", value)) \(unit) \(rangeText)" : "Not Provided"). \(description)")
     }
@@ -173,7 +185,7 @@ struct ResultsView: View {
     let test: TestData
     @EnvironmentObject var purchaseModel: PurchaseModel
 
-    // MARK: - Hero score calculation (mirrors FertilitySnapshotView logic)
+    // MARK: - Hero score calculation (UNCHANGED)
     private var fathrScore: Double {
         let motility = min((test.totalMobility ?? 0.0) * 2.5, 100.0)
         let conc = test.spermConcentration ?? 0.0
@@ -196,95 +208,93 @@ struct ResultsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
 
-                // MARK: - Hero Summary Card (NEW)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Detailed Wellness Metrics")
-                        .font(.title2)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .foregroundColor(.primary)
+                // MARK: - Hero Score Card (dark premium style)
+                VStack(alignment: .leading, spacing: 0) {
 
-                    // Score + key metrics row
-                    HStack(alignment: .top, spacing: 12) {
+                    // Top: score label
+                    Text("Fathr score")
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundColor(Color.white.opacity(0.5))
+                        .tracking(0.8)
+                        .padding(.bottom, 8)
 
-                        // Fathr score
-                        VStack(spacing: 4) {
-                            Text(String(format: "%.1f", fathrScore))
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                            Text("Fathr score")
-                                .font(.system(size: 11, design: .rounded))
-                                .foregroundColor(.secondary)
+                    // Score number + status badge
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(String(format: "%.0f", fathrScore))
+                            .font(.system(size: 56, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("/ 100")
+                                .font(.system(size: 16, design: .rounded))
+                                .foregroundColor(Color.white.opacity(0.4))
                             Text(scoreLabel)
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundColor(scoreGood ? Color(red: 0.23, green: 0.43, blue: 0.07) : Color(red: 0.52, green: 0.31, blue: 0.04))
-                                .padding(.horizontal, 8)
+                                .foregroundColor(scoreGood
+                                    ? Color(red: 0.784, green: 0.945, blue: 0.208)   // lime
+                                    : Color(red: 0.980, green: 0.780, blue: 0.459))  // amber
+                                .padding(.horizontal, 9)
                                 .padding(.vertical, 3)
-                                .background(scoreGood ? Color(red: 0.92, green: 0.95, blue: 0.87) : Color(red: 0.98, green: 0.93, blue: 0.85))
+                                .background(
+                                    scoreGood
+                                        ? Color(red: 0.784, green: 0.945, blue: 0.208).opacity(0.15)
+                                        : Color(red: 0.980, green: 0.780, blue: 0.459).opacity(0.15)
+                                )
                                 .cornerRadius(20)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(Color.gray.opacity(0.06))
-                        .cornerRadius(12)
-
-                        // Key metric chips
-                        VStack(alignment: .leading, spacing: 8) {
-                            HeroChip(
-                                label: "Motility",
-                                value: test.totalMobility.map { "\(Int($0))%" } ?? "—",
-                                good: (test.totalMobility ?? 0) >= 40
-                            )
-                            HeroChip(
-                                label: "Concentration",
-                                value: test.spermConcentration.map { "\(Int($0)) M/mL" } ?? "—",
-                                good: (test.spermConcentration ?? 0) >= 16
-                            )
-                            HeroChip(
-                                label: "Morphology",
-                                value: test.morphologyRate.map { "\(Int($0))%" } ?? "—",
-                                good: (test.morphologyRate ?? 0) >= 4
-                            )
-                            HeroChip(
-                                label: "DNA frag.",
-                                value: test.dnaFragmentationRisk.map { "\($0)%" } ?? "—",
-                                good: (test.dnaFragmentationRisk ?? 100) < 30
-                            )
-                        }
-                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 6)
+                        Spacer()
                     }
+                    .padding(.bottom, 16)
 
-                    Text("Visualizations are based on WHO 6th Edition standards for informational purposes only. Fathr is not a medical device. Consult a doctor for fertility concerns.")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
+                    // Divider
+                    Rectangle()
+                        .fill(Color.white.opacity(0.1))
+                        .frame(height: 0.5)
+                        .padding(.bottom, 14)
+
+                    // Key metrics row
+                    HStack(spacing: 0) {
+                        HeroChip(
+                            label: "Motility",
+                            value: test.totalMobility.map { "\(Int($0))%" } ?? "—",
+                            good: (test.totalMobility ?? 0) >= 40
+                        )
+                        Spacer()
+                        HeroChip(
+                            label: "Conc.",
+                            value: test.spermConcentration.map { "\(Int($0))M" } ?? "—",
+                            good: (test.spermConcentration ?? 0) >= 16
+                        )
+                        Spacer()
+                        HeroChip(
+                            label: "Morph.",
+                            value: test.morphologyRate.map { "\(Int($0))%" } ?? "—",
+                            good: (test.morphologyRate ?? 0) >= 4
+                        )
+                        Spacer()
+                        HeroChip(
+                            label: "DNA",
+                            value: test.dnaFragmentationRisk.map { "\($0)%" } ?? "—",
+                            good: (test.dnaFragmentationRisk ?? 100) < 30
+                        )
+                    }
+                    .padding(.bottom, 14)
+
+                    // Disclaimer
+                    Text("Based on WHO 6th Edition. For personal awareness only — not a medical diagnosis.")
+                        .font(.system(size: 10, design: .rounded))
+                        .foregroundColor(Color.white.opacity(0.35))
+                        .lineSpacing(3)
                 }
-                .padding(16)
-                .background(Color.white)
+                .padding(18)
+                .background(Color.fDark)
                 .cornerRadius(16)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.gray.opacity(0.15), lineWidth: 0.5)
-                )
 
-                // MARK: - Analysis Section (UNCHANGED)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Analysis")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .accessibilityHeading(.h2)
-                    Text("Tests the physical properties of the semen sample.")
-                        .font(.subheadline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .accessibilityLabel("Analysis section: Tests the physical properties of the semen sample.")
-                }
+                // MARK: - Analysis Section (UNCHANGED structure, updated section headers)
+                SectionHeader(title: "Analysis", subtitle: "Physical properties of the sample")
+
                 StatusBox(
                     title: "Appearance",
                     status: test.appearance?.rawValue.capitalized ?? "Not Provided",
@@ -320,22 +330,10 @@ struct ResultsView: View {
                 )
 
                 // MARK: - Motility Section (UNCHANGED call sites)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Motility")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .accessibilityHeading(.h2)
-                    Text("Checks how well sperm move and swim.")
-                        .font(.subheadline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .accessibilityLabel("Motility section: Checks how well sperm move and swim.")
-                }
+                SectionHeader(title: "Motility", subtitle: "How well sperm move and swim")
+                    .accessibilityHeading(.h2)
+                    .accessibilityLabel("Motility section: Checks how well sperm move and swim.")
+
                 ProgressStatusBox(
                     title: "Total Mobility",
                     value: test.totalMobility ?? 0.0,
@@ -394,22 +392,10 @@ struct ResultsView: View {
                 )
 
                 // MARK: - Concentration Section (UNCHANGED call sites)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Concentration")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .accessibilityHeading(.h2)
-                    Text("Measures the number of sperm in the sample.")
-                        .font(.subheadline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .accessibilityLabel("Concentration section: Measures the number of sperm in the sample.")
-                }
+                SectionHeader(title: "Concentration", subtitle: "Number of sperm in the sample")
+                    .accessibilityHeading(.h2)
+                    .accessibilityLabel("Concentration section: Measures the number of sperm in the sample.")
+
                 ProgressStatusBox(
                     title: "Sperm Concentration",
                     value: test.spermConcentration ?? 0.0,
@@ -466,22 +452,10 @@ struct ResultsView: View {
                 )
 
                 // MARK: - Morphology Section (UNCHANGED call sites)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Morphology")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .accessibilityHeading(.h2)
-                    Text("Examines the shape and structure of sperm.")
-                        .font(.subheadline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .accessibilityLabel("Morphology section: Examines the shape and structure of sperm.")
-                }
+                SectionHeader(title: "Morphology", subtitle: "Shape and structure of sperm")
+                    .accessibilityHeading(.h2)
+                    .accessibilityLabel("Morphology section: Examines the shape and structure of sperm.")
+
                 ProgressStatusBox(
                     title: "Morphology Rate",
                     value: test.morphologyRate ?? 0.0,
@@ -526,22 +500,10 @@ struct ResultsView: View {
                 )
 
                 // MARK: - DNA Fragmentation Section (UNCHANGED call sites)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("DNA Fragmentation")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .accessibilityHeading(.h2)
-                    Text("Assesses damage to sperm DNA.")
-                        .font(.subheadline)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.leading)
-                        .padding(.horizontal, 16)
-                        .accessibilityLabel("DNA Fragmentation section: Assesses damage to sperm DNA.")
-                }
+                SectionHeader(title: "DNA fragmentation", subtitle: "Damage to sperm DNA")
+                    .accessibilityHeading(.h2)
+                    .accessibilityLabel("DNA Fragmentation section: Assesses damage to sperm DNA.")
+
                 ProgressStatusBox(
                     title: "DNA Fragmentation Risk",
                     value: Double(test.dnaFragmentationRisk ?? 0),
@@ -564,14 +526,21 @@ struct ResultsView: View {
                     description: "A summary of your test results. Normal indicates healthy semen parameters."
                 )
 
+                // UNCHANGED footer disclaimer
                 Text("Results are for personal awareness, not medical diagnosis.")
-                    .font(.caption)
-                    .fontDesign(.rounded)
-                    .foregroundColor(.gray)
-                    .padding(.top)
+                    .font(.system(size: 11, design: .rounded))
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
             }
-            .padding()
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 32)
         }
+        .background(Color.fSurface.ignoresSafeArea())
+        // UNCHANGED modifiers
         .navigationTitle("Wellness Results")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -583,23 +552,45 @@ struct ResultsView: View {
     }
 }
 
-// MARK: - Hero Chip (used only in hero summary)
+// MARK: - Section Header (replaces the inline VStack pattern — same semantics)
+private struct SectionHeader: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+            Text(subtitle)
+                .font(.system(size: 12, design: .rounded))
+                .foregroundColor(.secondary)
+        }
+        .padding(.top, 6)
+        .padding(.horizontal, 2)
+    }
+}
+
+// MARK: - Hero Chip
+// Layout changed: vertical stack, dark background. Logic (good/bad, values) UNCHANGED.
 private struct HeroChip: View {
     let label: String
     let value: String
     let good: Bool
 
     var body: some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(good ? Color(red: 0.39, green: 0.60, blue: 0.13) : Color(red: 0.94, green: 0.62, blue: 0.15))
-                .frame(width: 7, height: 7)
+        VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.white)
             Text(label)
-                .font(.system(size: 12, design: .rounded))
-                .foregroundColor(.secondary)
+                .font(.system(size: 10, design: .rounded))
+                .foregroundColor(Color.white.opacity(0.45))
+            Circle()
+                .fill(good
+                    ? Color(red: 0.784, green: 0.945, blue: 0.208)   // lime = good
+                    : Color(red: 0.980, green: 0.780, blue: 0.459))  // amber = warn
+                .frame(width: 5, height: 5)
         }
     }
 }

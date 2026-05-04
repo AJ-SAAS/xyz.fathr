@@ -3,148 +3,147 @@ import FirebaseFirestore
 import Foundation
 
 class AuthManager: ObservableObject {
-    @Published var isSignedIn: Bool = false
+
+    @Published var user: User? = Auth.auth().currentUser
+    @Published var isSignedIn: Bool = Auth.auth().currentUser != nil
     @Published var isGuest: Bool = false
     @Published var errorMessage: String?
-
-    var currentUserID: String? {
-        Auth.auth().currentUser?.uid
-    }
 
     private var authListenerHandle: AuthStateDidChangeListenerHandle?
     private let testStore: TestStore
 
+    var currentUserID: String? {
+        user?.uid
+    }
+
     init() {
         self.testStore = TestStore()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.checkAuthState()
-            self.authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
-                let isSignedIn = user != nil
-                print("AuthManager: Auth state changed, isSignedIn = \(isSignedIn), user = \(user?.uid ?? "none")")
-                self?.isSignedIn = isSignedIn
+        listenToAuth()
+    }
+
+    private func listenToAuth() {
+        authListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            DispatchQueue.main.async {
+                self?.user = user
+                self?.isSignedIn = user != nil
+                print("🔑 Auth changed:", user?.uid ?? "nil")
             }
         }
     }
 
+    // MARK: Guest
     func continueAsGuest() {
-        print("AuthManager: Continuing as guest")
         isGuest = true
         isSignedIn = true
     }
 
-    func checkAuthState() {
-        let user = Auth.auth().currentUser
-        isSignedIn = user != nil
-        print("AuthManager: checkAuthState, isSignedIn = \(isSignedIn), user = \(user?.uid ?? "none")")
-    }
-
+    // MARK: Sign In
     func signIn(email: String, password: String) {
         errorMessage = nil
-        print("AuthManager: Attempting sign-in with email: \(email)")
+
         Auth.auth().signIn(withEmail: email, password: password) { [weak self] result, error in
             if let error = error {
                 self?.errorMessage = error.localizedDescription
-                print("AuthManager: Sign-in error: \(error.localizedDescription)")
                 return
             }
-            if let result = result {
+
+            DispatchQueue.main.async {
+                self?.user = result?.user
                 self?.isSignedIn = true
                 self?.isGuest = false
-                print("AuthManager: Sign-in successful, isSignedIn = true, user = \(result.user.uid)")
             }
         }
     }
 
+    // MARK: Sign Up
     func signUp(email: String, password: String) {
         errorMessage = nil
-        print("AuthManager: Attempting sign-up with email: \(email)")
+
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] result, error in
             if let error = error {
                 self?.errorMessage = error.localizedDescription
-                print("AuthManager: Sign-up error: \(error.localizedDescription)")
                 return
             }
-            if let result = result {
+
+            DispatchQueue.main.async {
+                self?.user = result?.user
                 self?.isSignedIn = true
                 self?.isGuest = false
-                print("AuthManager: Sign-up successful, user = \(result.user.uid)")
             }
         }
     }
 
-    func resetPassword(email: String) {
-        errorMessage = nil
-        print("AuthManager: Sending password reset for email: \(email)")
-        Auth.auth().sendPasswordReset(withEmail: email) { [weak self] error in
-            if let error = error {
-                self?.errorMessage = error.localizedDescription
-                print("AuthManager: Reset password error: \(error.localizedDescription)")
-                return
-            }
-            self?.errorMessage = "Password reset email sent"
-            print("AuthManager: Password reset email sent successfully")
+    // MARK: - COMPLETE SIGNUP WITH ONBOARDING DATA
+    func completeSignupWithOnboarding() {
+        guard let uid = currentUserID else {
+            print("⚠️ completeSignupWithOnboarding called but no user ID")
+            return
         }
+        
+        let dataManager = OnboardingDataManager.shared
+        
+        let userData: [String: Any] = [
+            "hasCompletedOnboarding": true,
+            "onboardingCompletedAt": Timestamp(),
+            "onboardingVersion": 2,
+            "journeyStage": dataManager.journeyStage,
+            "mainGoal": dataManager.mainGoal,
+            "createdAt": Timestamp(),
+            "email": Auth.auth().currentUser?.email ?? "",
+            "updatedAt": Timestamp()
+        ]
+        
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .setData(userData, merge: true) { error in
+                if let error = error {
+                    print("❌ Failed to save onboarding data: \(error.localizedDescription)")
+                } else {
+                    print("✅ Onboarding data successfully saved to Firestore")
+                    dataManager.clearTempData()
+                }
+            }
     }
 
+    // MARK: Sign Out
     func signOut() {
-        errorMessage = nil
         do {
             try Auth.auth().signOut()
-            isSignedIn = false
-            isGuest = false
-            print("AuthManager: Signed out successfully")
+            DispatchQueue.main.async {
+                self.user = nil
+                self.isSignedIn = false
+                self.isGuest = false
+                OnboardingDataManager.shared.clearTempData() // Clean up
+            }
         } catch {
-            errorMessage = "Failed to sign out: \(error.localizedDescription)"
-            print("AuthManager: Sign-out error: \(error.localizedDescription)")
+            errorMessage = error.localizedDescription
         }
     }
 
+    // MARK: Delete Account
     func deleteAccount(completion: @escaping (Error?) -> Void) {
         guard let user = Auth.auth().currentUser else {
-            let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user logged in"])
-            print("AuthManager: No user logged in for account deletion")
-            completion(error)
+            completion(NSError(domain: "", code: -1))
             return
         }
 
-        let db = Firestore.firestore()
-        let userDocRef = db.collection("users").document(user.uid)
+        let uid = user.uid
 
-        print("AuthManager: Deleting Firestore data for user \(user.uid)")
-        testStore.deleteAllTestsForUser(userId: user.uid) { success in
-            if !success {
-                let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to delete tests"])
-                print("AuthManager: Failed to delete tests")
-                completion(error)
-                return
-            }
-            self.testStore.deleteChallengeProgress(userId: user.uid) { success in
-                if !success {
-                    let error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to delete challenge progress"])
-                    print("AuthManager: Failed to delete challenge progress")
-                    completion(error)
-                    return
-                }
-                userDocRef.delete { error in
-                    if let error = error {
-                        print("AuthManager: Error deleting Firestore data: \(error.localizedDescription)")
-                        completion(error)
-                        return
-                    }
-                    print("AuthManager: Deleting Firebase user \(user.uid)")
-                    user.delete { error in
-                        if let error = error {
-                            print("AuthManager: Error deleting Firebase user: \(error.localizedDescription)")
-                            completion(error)
-                            return
-                        }
+        Firestore.firestore()
+            .collection("users")
+            .document(uid)
+            .delete { _ in
+
+                user.delete { error in
+                    DispatchQueue.main.async {
+                        self.user = nil
                         self.isSignedIn = false
-                        self.errorMessage = nil
-                        print("AuthManager: Account deleted successfully")
-                        completion(nil)
+                        self.isGuest = false
+                        OnboardingDataManager.shared.clearTempData()
+                        completion(error)
                     }
                 }
             }
-        }
     }
 }

@@ -43,105 +43,121 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Image("fathr-logo-dash-2")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 120)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 16)
+                ZStack {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {   // Increased spacing
+                            
+                            // MARK: - IMPROVED HERO SECTION
+                            VStack(spacing: 20) {
+                                
+                                // Logo
+                                Image("fathr-logo-dash-2")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 112)
+                                    .padding(.top, 12)
+                                
+                                // Dynamic Greeting
+                                VStack(spacing: 6) {
+                                    Text(greetingText())
+                                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                                        .foregroundColor(.black)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 20)
+                                    
+                                    Text(formattedDate())
+                                        .font(.system(size: 17, weight: .medium, design: .rounded))
+                                        .foregroundColor(.gray)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 20)
+                                }
+                            }
                             .padding(.bottom, 8)
 
-                        WelcomeHeaderView()
-
-                        // Only show these cards when no tests exist
-                        if testStore.tests.isEmpty {
-                            HStack(alignment: .center, spacing: 16) {
-                                Button {
-                                    if authManager.isGuest {
-                                        showSignUp = true
-                                    } else {
-                                        showInput = true
+                            // MARK: - CONTENT STARTS HERE
+                            if testStore.tests.isEmpty {
+                                HStack(alignment: .center, spacing: 16) {
+                                    Button {
+                                        if authManager.isGuest {
+                                            showSignUp = true
+                                        } else {
+                                            showInput = true
+                                        }
+                                    } label: {
+                                        AddTestCardView()
+                                            .frame(maxWidth: .infinity, maxHeight: 160)
                                     }
-                                } label: {
-                                    AddTestCardView()
-                                        .frame(maxWidth: .infinity, maxHeight: 160)
+
+                                    Button {
+                                        navigateToChallenge = true
+                                    } label: {
+                                        SeventyFourDayResetCardView()
+                                            .frame(maxWidth: .infinity, maxHeight: 160)
+                                    }
                                 }
-                                .accessibilityLabel("Add a New Sperm Test")
-
-                                Button {
-                                    navigateToChallenge = true
-                                } label: {
-                                    SeventyFourDayResetCardView()
-                                        .frame(maxWidth: .infinity, maxHeight: 160)
-                                }
-                                .accessibilityLabel("74 Day Reset Challenge")
-                            }
-                            .padding(.horizontal)
-                        }
-
-                        if !testStore.tests.isEmpty {
-                            FertilitySnapshotView(
-                                selectedTab: $selectedTab,
-                                showPaywall: $showPaywall,
-                                showFullAnalysis: $showFullAnalysis,
-                                showInput: $showInput,
-                                showSignUp: $showSignUp,
-                                navigateToChallenge: $navigateToChallenge
-                            )
-
-                            CoreMetricsOverviewView()
-
-                            FertilitySnapshotBarView(
-                                showPaywall: $showPaywall,
-                                showFullAnalysis: $showFullAnalysis
-                            )
-
-                            ChallengePromptCard(navigateToChallenge: $navigateToChallenge)
-
-                            RecentTestsSection(
-                                selectedTab: $selectedTab,
-                                showPaywall: $showPaywall,
-                                selectedTest: $selectedTest
-                            )
-
-                            if let latestTest = testStore.tests.first {
-                                let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
-                                MetricCardView(
-                                    title: "Where You Are Winning",
-                                    metrics: winningMetrics,
-                                    isWinning: true
-                                )
-                                MetricCardView(
-                                    title: "Your Next Steps",
-                                    metrics: improvementMetrics,
-                                    isWinning: false
-                                )
+                                .padding(.horizontal, 20)
                             }
 
-                            DailyBoostTipsView(
-                                checkedTips: checkedTips,
-                                onTipToggle: { index in
-                                    checkedTips[index] = !(checkedTips[index] ?? false)
-                                }
-                            )
-                        } else {
-                            RecentTestsSection(
-                                selectedTab: $selectedTab,
-                                showPaywall: $showPaywall,
-                                selectedTest: $selectedTest
-                            )
-                        }
+                            if !testStore.tests.isEmpty {
+                                FertilitySnapshotView(
+                                    selectedTab: $selectedTab,
+                                    showPaywall: $showPaywall,
+                                    showFullAnalysis: $showFullAnalysis,
+                                    showInput: $showInput,
+                                    showSignUp: $showSignUp,
+                                    navigateToChallenge: $navigateToChallenge
+                                )
 
-                        ArticlesView()
-                        DisclaimerView()
+                                CoreMetricsOverviewView()
+
+                                FertilitySnapshotBarView(
+                                    showPaywall: $showPaywall,
+                                    showFullAnalysis: $showFullAnalysis
+                                )
+
+                                ChallengePromptCard(navigateToChallenge: $navigateToChallenge)
+
+                                RecentTestsSection(
+                                    selectedTab: $selectedTab,
+                                    showPaywall: $showPaywall,
+                                    selectedTest: $selectedTest
+                                )
+
+                                if let latestTest = testStore.tests.first {
+                                    let (winningMetrics, improvementMetrics) = evaluateMetrics(for: latestTest)
+                                    MetricCardView(
+                                        title: "Where You Are Winning",
+                                        metrics: winningMetrics,
+                                        isWinning: true
+                                    )
+                                    MetricCardView(
+                                        title: "Your Next Steps",
+                                        metrics: improvementMetrics,
+                                        isWinning: false
+                                    )
+                                }
+
+                                DailyBoostTipsView(
+                                    checkedTips: checkedTips,
+                                    onTipToggle: { index in
+                                        checkedTips[index] = !(checkedTips[index] ?? false)
+                                    }
+                                )
+                            } else {
+                                RecentTestsSection(
+                                    selectedTab: $selectedTab,
+                                    showPaywall: $showPaywall,
+                                    selectedTest: $selectedTest
+                                )
+                            }
+
+                            ArticlesView()
+                            DisclaimerView()
+                        }
+                        .padding(.vertical)
                     }
-                    .padding(.vertical)
+                    .background(Color.white)
                 }
-                .background(Color.white)
-            }
             .navigationTitle("")
             .sheet(isPresented: $showInput) {
                 TestInputView()
@@ -187,6 +203,24 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Helper Functions (Added here)
+    private func greetingText() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        
+        switch hour {
+        case 5..<12:  return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<22: return "Good evening"
+        default:      return "Good night"
+        }
+    }
+
+    private func formattedDate() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d"
+        return formatter.string(from: Date())
     }
 
     @ViewBuilder

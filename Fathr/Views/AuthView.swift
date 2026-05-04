@@ -2,75 +2,96 @@ import SwiftUI
 import FirebaseAuth
 
 struct AuthView: View {
+
     @EnvironmentObject var authManager: AuthManager
-    @EnvironmentObject var purchaseModel: PurchaseModel
+
     @State private var email: String = ""
     @State private var password: String = ""
     @State private var confirmPassword: String = ""
     @State private var isSignUp: Bool = true
     @State private var showingResetPassword: Bool = false
     @State private var resetEmail: String = ""
+
     var onAuthSuccess: () -> Void
 
     var body: some View {
         GeometryReader { geometry in
             NavigationStack {
                 ScrollView {
+
                     VStack(spacing: geometry.size.width > 600 ? 24 : 20) {
 
+                        // MARK: Logo
                         Image("Fathr_logo_white")
                             .resizable()
                             .scaledToFit()
                             .frame(maxWidth: min(geometry.size.width * 0.4, 200))
                             .padding(.top, geometry.size.width > 600 ? 40 : 24)
 
-                        Text(isSignUp ? "Get started" : "Sign In")
+                        // MARK: TITLE
+                        Text("Save your progress")
                             .font(.system(.largeTitle, weight: .bold))
                             .foregroundColor(.black)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
 
+                        // MARK: SUBTITLE
+                        Text("Your 74-day transformation will be stored safely")
+                            .font(.system(size: 14))
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
+
+                        // MARK: EMAIL
                         TextField("Email", text: $email)
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .padding()
-                            .background(.gray.opacity(0.1))
+                            .background(Color.gray.opacity(0.1))
                             .cornerRadius(8)
                             .frame(maxWidth: min(geometry.size.width * 0.9, 600))
                             .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
 
+                        // MARK: PASSWORD
                         SecureField("Password", text: $password)
                             .textContentType(isSignUp ? .newPassword : .password)
                             .padding()
-                            .background(.gray.opacity(0.1))
+                            .background(Color.gray.opacity(0.1))
                             .cornerRadius(8)
                             .frame(maxWidth: min(geometry.size.width * 0.9, 600))
                             .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
 
+                        // MARK: CONFIRM PASSWORD
                         if isSignUp {
                             SecureField("Confirm Password", text: $confirmPassword)
                                 .padding()
-                                .background(.gray.opacity(0.1))
+                                .background(Color.gray.opacity(0.1))
                                 .cornerRadius(8)
                                 .frame(maxWidth: min(geometry.size.width * 0.9, 600))
                                 .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                         }
 
+                        // MARK: ERROR
                         if let error = authManager.errorMessage {
                             Text(error)
                                 .foregroundColor(.red)
                                 .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
                         }
 
-                        Button(isSignUp ? "Sign Up" : "Sign In") {
+                        // MARK: PRIMARY BUTTON
+                        Button("Continue") {
+
                             if isSignUp {
-                                if password == confirmPassword {
-                                    authManager.signUp(email: email, password: password)
-                                } else {
+
+                                guard password == confirmPassword else {
                                     authManager.errorMessage = "Passwords do not match"
+                                    return
                                 }
+
+                                authManager.signUp(email: email, password: password)
+
                             } else {
                                 authManager.signIn(email: email, password: password)
                             }
@@ -78,36 +99,63 @@ struct AuthView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: min(geometry.size.width * 0.8, 400))
                         .padding()
-                        .background(email.isEmpty || password.isEmpty ? .gray : .black)
+                        .background(email.isEmpty || password.isEmpty ? Color.gray : Color.black)
                         .cornerRadius(8)
 
-                        Button("Continue as Guest") {
-                            authManager.continueAsGuest()
-                        }
-                        .foregroundColor(.black)
-                        .frame(maxWidth: min(geometry.size.width * 0.8, 400))
-                        .padding()
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-
-                        Button(isSignUp ? "Already have an account? Sign In" : "Need an account? Sign Up") {
+                        // MARK: TOGGLE
+                        Button(isSignUp
+                               ? "Already have an account? Sign in"
+                               : "Need an account? Sign up") {
                             isSignUp.toggle()
                             authManager.errorMessage = nil
                         }
-                        .foregroundColor(.black)
+                        .foregroundColor(.blue)
 
+                        // MARK: RESET PASSWORD
                         Button("Forgot Password?") {
                             showingResetPassword = true
                         }
                         .foregroundColor(.black)
+
+                        // MARK: GUEST
+                        HStack(spacing: 4) {
+                            Text("Would you like to sign in later?")
+                                .foregroundColor(.black)
+
+                            Button(action: {
+                                authManager.continueAsGuest()
+                                onAuthSuccess()
+                            }) {
+                                Text("Skip")
+                                    .bold()
+                                    .underline()
+                                    .foregroundColor(.black)
+                            }
+                        }
+                        .padding(.top, 4)
                     }
                 }
                 .background(Color.white.ignoresSafeArea())
-                .onChange(of: authManager.isGuest) { _, newValue in
-                    if !newValue && authManager.isSignedIn {
-                        onAuthSuccess()
+
+                // MARK: UPDATED - Handle successful authentication
+                .onChange(of: authManager.currentUserID) { _, userID in
+                    if let userID = userID, !userID.isEmpty {
+                        DispatchQueue.main.async {
+                            // Transfer onboarding data to Firestore for new users
+                            if isSignUp {
+                                authManager.completeSignupWithOnboarding()
+                            }
+                            onAuthSuccess()
+                        }
+                    }
+                }
+
+                // safety fallback (guest flow)
+                .onChange(of: authManager.isGuest) { _, isGuest in
+                    if isGuest {
+                        DispatchQueue.main.async {
+                            onAuthSuccess()
+                        }
                     }
                 }
             }

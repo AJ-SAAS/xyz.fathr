@@ -4,118 +4,205 @@ import FirebaseFirestore
 
 struct OB12_LoadingView: View {
     var onNext: () -> Void
-    @State private var progress: Double = 0.0
-    @State private var showPurchaseView: Bool = false
+
     @Binding var goal: String
     @Binding var situation: String
     @Binding var ageGroup: String
     @Binding var energyLevel: String
     @Binding var stressLevel: String
     @Binding var previousEfforts: [String]
+
     @EnvironmentObject var purchaseModel: PurchaseModel
 
+    @State private var progress: Double = 0.0
+    @State private var showPurchaseView: Bool = false
+    @State private var currentStep: Int = 0
+
+    let steps: [(icon: String, text: String)] = [
+        ("doc.text.magnifyingglass", "Reading your answers"),
+        ("heart.text.square",       "Mapping your fertility profile"),
+        ("chart.line.uptrend.xyaxis", "Calculating your 90-day window"),
+        ("checkmark.seal",          "Building your action plan")
+    ]
+
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: geometry.size.width > 600 ? 24 : 16) {
-                Text("Analyzing Your Responses")
-                    .font(.system(.largeTitle, design: .default, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                    .accessibilityLabel("Analyzing Your Responses")
+        VStack(alignment: .leading, spacing: 0) {
 
-                Text("We’re building your personalized plan.")
-                    .font(.system(.subheadline, design: .default, weight: .regular))
-                    .foregroundColor(.gray)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-
-                Spacer()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle())
-                    .scaleEffect(1.5)
-                    .padding(.bottom, 16)
-                    .accessibilityLabel("Loading your personalized plan")
-
-                ProgressView(value: min(max(progress, 0.0), 1.0), total: 1.0)
-                    .progressViewStyle(LinearProgressViewStyle())
-                    .tint(.black)
-                    .frame(maxWidth: min(geometry.size.width * 0.9, 600))
-                    .padding(.horizontal, geometry.size.width > 600 ? 64 : 32)
-                    .accessibilityLabel("Progress: \(Int(progress * 100))%")
-
-                Spacer()
+            // Headline
+            Group {
+                Text("Building your\n")
+                    .font(.playfair(36))
+                    .foregroundColor(Color.fathrBlack)
+                + Text("personal plan.")
+                    .font(.playfairItalic(36))
+                    .foregroundColor(Color.fathrBlue)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, geometry.size.width > 600 ? 40 : 24)
-            .background(Color.white.ignoresSafeArea())
-            .sheet(isPresented: $showPurchaseView, onDismiss: {
-                print("OB12_LoadingView: PurchaseView dismissed, calling onNext")
-                onNext()
-            }) {
-                PurchaseView(isPresented: $showPurchaseView, purchaseModel: purchaseModel)
-                    .environmentObject(purchaseModel)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.top, 60)
+            .padding(.bottom, 10)
+
+            Text("This only takes a moment.")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundColor(Color.fathrSub)
+                .padding(.bottom, 52)
+
+            // Animated step list
+            VStack(alignment: .leading, spacing: 20) {
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, step in
+                    LoadingStepRow(
+                        icon: step.icon,
+                        text: step.text,
+                        state: stepState(for: i)
+                    )
+                }
             }
-            .onAppear {
-                if let userId = Auth.auth().currentUser?.uid {
-                    print("OB12_LoadingView: Saving onboarding data for user \(userId)")
-                    Firestore.firestore().collection("users").document(userId).setData([
-                        "goal": goal,
-                        "situation": situation,
-                        "ageGroup": ageGroup,
-                        "energyLevel": energyLevel,
-                        "stressLevel": stressLevel,
-                        "previousEfforts": previousEfforts,
-                        "hasCompletedOnboarding": true,
-                        "onboardingCompletedAt": Timestamp()
-                    ], merge: true) { error in
-                        if let error = error {
-                            print("OB12_LoadingView: Error saving onboarding data: \(error.localizedDescription)")
-                        } else {
-                            print("OB12_LoadingView: Onboarding data saved successfully")
-                            withAnimation(.linear(duration: 2)) {
-                                progress = 1.0
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                print("OB12_LoadingView: Showing PurchaseView")
-                                showPurchaseView = true
-                            }
-                        }
+            .padding(.bottom, 52)
+
+            // Progress bar
+            VStack(alignment: .leading, spacing: 10) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.fathrBlueMid)
+                            .frame(height: 6)
+
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.fathrBlue)
+                            .frame(width: geo.size.width * progress, height: 6)
+                            .animation(.linear(duration: 0.3), value: progress)
                     }
-                } else {
-                    print("OB12_LoadingView: No user ID, cannot save onboarding data")
-                    withAnimation(.linear(duration: 2)) {
-                        progress = 1.0
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        print("OB12_LoadingView: Showing PurchaseView (no user ID)")
-                        showPurchaseView = true
-                    }
+                }
+                .frame(height: 6)
+
+                Text("\(Int(progress * 100))% complete")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundColor(Color.fathrMuted)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .background(Color.white.ignoresSafeArea())
+        .sheet(isPresented: $showPurchaseView, onDismiss: {
+            onNext()
+        }) {
+            PurchaseView(isPresented: $showPurchaseView, purchaseModel: purchaseModel)
+                .environmentObject(purchaseModel)
+        }
+        .onAppear {
+            startStepAnimation()
+            saveOnboardingData()
+        }
+    }
+
+    // MARK: - Step state
+    private func stepState(for index: Int) -> LoadingStepState {
+        if index < currentStep { return .done }
+        if index == currentStep { return .active }
+        return .waiting
+    }
+
+    // MARK: - Animate through steps
+    private func startStepAnimation() {
+        for i in 0..<steps.count {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.52) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentStep = i
+                    progress = Double(i + 1) / Double(steps.count)
                 }
             }
         }
     }
+
+    // MARK: - UPDATED: Save Locally (Since Auth is after onboarding)
+    private func saveOnboardingData() {
+        OnboardingDataManager.shared.saveOnboardingData(
+            journeyStage: situation,
+            mainGoal: goal
+        )
+        
+        // Still show paywall after animation
+        simulateLoadingAndShowPaywall()
+    }
+
+    private func simulateLoadingAndShowPaywall() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.3) {
+            showPurchaseView = true
+        }
+    }
 }
 
-#Preview("iPhone 14") {
-    OB12_LoadingView(
-        onNext: {},
-        goal: .constant(""),
-        situation: .constant(""),
-        ageGroup: .constant(""),
-        energyLevel: .constant(""),
-        stressLevel: .constant(""),
-        previousEfforts: .constant([])
-    )
-    .environmentObject(PurchaseModel())
+// MARK: - Step Row
+enum LoadingStepState { case waiting, active, done }
+
+struct LoadingStepRow: View {
+    let icon: String
+    let text: String
+    let state: LoadingStepState
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(iconBg)
+                    .frame(width: 40, height: 40)
+
+                if state == .done {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color.fathrSuccess)
+                } else if state == .active {
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(Color.fathrBlue)
+                } else {
+                    Image(systemName: icon)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(Color.fathrMuted.opacity(0.5))
+                }
+            }
+
+            Text(text)
+                .font(.system(size: 15, weight: state == .active ? .semibold : .regular))
+                .foregroundColor(textColor)
+                .animation(.easeInOut(duration: 0.2), value: state)
+
+            Spacer()
+
+            if state == .done {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(Color.fathrSuccess)
+                    .transition(.scale.combined(with: .opacity))
+            } else if state == .active {
+                ProgressView()
+                    .tint(Color.fathrBlue)
+                    .scaleEffect(0.8)
+            }
+        }
+    }
+
+    private var iconBg: Color {
+        switch state {
+        case .done:   return Color(hex: "#E8F7EE")
+        case .active: return Color.fathrBlueLight
+        case .waiting: return Color.fathrOff
+        }
+    }
+
+    private var textColor: Color {
+        switch state {
+        case .done:    return Color.fathrSub
+        case .active:  return Color.fathrBlack
+        case .waiting: return Color.fathrMuted
+        }
+    }
 }
 
-#Preview("iPad Pro") {
+#Preview {
     OB12_LoadingView(
         onNext: {},
-        goal: .constant(""),
-        situation: .constant(""),
+        goal: .constant("Improving sperm quality"),
+        situation: .constant("Just starting to try"),
         ageGroup: .constant(""),
         energyLevel: .constant(""),
         stressLevel: .constant(""),

@@ -46,7 +46,7 @@ struct WelcomeValueScreen1: View {
 
             HStack(alignment: .top, spacing: 12) {
                 StatBox(title: "1 in 6", subtitle: "couples face fertility challenges")
-                StatBox(title: "50%", subtitle: "involve a male factor")
+                StatBox(title: "50%", subtitle: "actually involve a male factor")
             }
             .padding(.bottom, 40)
             .staggerReveal(4)

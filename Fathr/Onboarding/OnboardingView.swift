@@ -15,7 +15,7 @@ struct OnboardingView: View {
     // Animation control
     @State private var skipAnimations: Bool = false
 
-    // 🔥 UPDATED: no longer assumes "home navigation"
+    // Navigation callback (handled by RootView)
     var onComplete: () -> Void
 
     var body: some View {
@@ -33,8 +33,13 @@ struct OnboardingView: View {
                     switch currentStep {
 
                     case .welcome1:
-                        WelcomeValueScreen1(onNext: { currentStep = .welcome2 })
-                            .environment(\.skipAnimations, skipAnimations)
+                        WelcomeValueScreen1(
+                            onNext: { currentStep = .welcome2 },
+                            onSkip: {
+                                skipToAuth()
+                            }
+                        )
+                        .environment(\.skipAnimations, skipAnimations)
 
                     case .welcome2:
                         WelcomeValueScreen2(onNext: { currentStep = .welcome3 })
@@ -92,8 +97,9 @@ struct OnboardingView: View {
                 .id(currentStep)
             }
         }
-
         .contentShape(Rectangle())
+
+        // Tap anywhere → skip animations (NOT onboarding)
         .onTapGesture {
             skipAnimations = true
         }
@@ -101,18 +107,16 @@ struct OnboardingView: View {
         .animation(.easeInOut(duration: 0.45), value: currentStep)
     }
 
-    // MARK: - FINAL STEP (UPDATED FLOW)
-    private func finishOnboarding() {
-
-        // 1. mark onboarding done
+    // MARK: - Skip to Auth (FIXED)
+    private func skipToAuth() {
         hasCompletedOnboarding = true
-
-        // 2. tell RootView: onboarding + paywall flow finished
         onComplete()
+    }
 
-        // ❌ IMPORTANT CHANGE:
-        // We NO LONGER assume this goes to Home.
-        // RootView decides next step (AuthView → Home)
+    // MARK: - Final Step
+    private func finishOnboarding() {
+        hasCompletedOnboarding = true
+        onComplete()
     }
 }
 
@@ -132,7 +136,7 @@ enum OnboardingStep {
     }
 }
 
-// MARK: - Animation System (TypingText + Staggered)
+// MARK: - Animation System
 struct SkipAnimationsKey: EnvironmentKey {
     static let defaultValue: Bool = false
 }
@@ -144,6 +148,7 @@ extension EnvironmentValues {
     }
 }
 
+// MARK: - Staggered Reveal
 struct StaggeredRevealModifier: ViewModifier {
     let delay: Double
 
@@ -175,6 +180,7 @@ extension View {
     }
 }
 
+// MARK: - Typing Text
 struct TypingText: View {
     let fullText: String
 

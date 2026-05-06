@@ -219,11 +219,12 @@ struct BeforeAfterCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color.fathrOff)
+        // MARK: - Only these two lines changed
+        .background(isAfter ? Color.fathrSuccess.opacity(0.08) : Color.fathrDanger.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.fathrBorder, lineWidth: 1)
+                .stroke(isAfter ? Color.fathrSuccess : Color.fathrDanger, lineWidth: 1)
         )
     }
 }

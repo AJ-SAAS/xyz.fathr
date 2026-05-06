@@ -15,7 +15,7 @@ struct TrackView: View {
                 TestInputView()
                     .environmentObject(testStore)
             }
-            .toolbar(.visible, for: .tabBar) // Ensure tab bar remains visible
+            .toolbar(.visible, for: .tabBar)
         }
     }
 }
@@ -25,7 +25,7 @@ struct TrackContentView: View {
     @Binding var showTestInput: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) { // Reduced spacing from 16 to 8
+        VStack(alignment: .leading, spacing: 8) {
             if testStore.tests.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("No Test Results")
@@ -40,12 +40,205 @@ struct TrackContentView: View {
                         .padding(.horizontal)
                 }
             } else {
+                if let latestTest = testStore.tests.first {
+                    TrackHeroCard(test: latestTest)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .padding(.bottom, -4)
+                }
                 NextTestProgressBarView(showTestInput: $showTestInput)
+                if let latestTest = testStore.tests.first {
+                    TrackInsightBanner(test: latestTest)
+                        .padding(.horizontal)
+                }
                 SummaryCardsView()
                 RecentResultsBreakdownView()
             }
         }
-        .padding(.vertical, 0) // Changed from 2 to 0 to minimize gap
+        .padding(.vertical, 0)
+    }
+}
+
+// MARK: - Track Hero Card
+struct TrackHeroCard: View {
+    let test: TestData
+
+    private var fathrScore: Double {
+        let motility = min((test.totalMobility ?? 0.0) * 2.5, 100.0)
+        let conc = test.spermConcentration ?? 0.0
+        let concentration = conc <= 15.0 ? (conc / 15.0) * 50.0 : 50.0 + ((conc - 15.0) / 85.0) * 50.0
+        let morph = test.morphologyRate ?? 0.0
+        let morphology = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
+        let dna = Double(test.dnaFragmentationRisk ?? 0)
+        let dnaScore = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
+        var analysis = 0.0
+        if test.appearance == .normal  { analysis += 25 }
+        if test.liquefaction == .normal { analysis += 25 }
+        if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { analysis += 25 }
+        if let sq = test.semenQuantity, sq >= 1.4 { analysis += 25 }
+        return (0.35 * motility) + (0.30 * min(concentration, 100)) +
+               (0.15 * min(morphology, 100)) + (0.10 * dnaScore) + (0.10 * analysis)
+    }
+
+    private var scoreGood: Bool { fathrScore >= 70 }
+    private var scoreLabel: String { scoreGood ? "In the fertile zone" : "Needs boosting" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            Text("Fathr Score")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundColor(Color.white)
+                .tracking(0.5)
+                .padding(.bottom, 6)
+
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(String(format: "%.0f", fathrScore))
+                    .font(.system(size: 64, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("/ 100")
+                        .font(.system(size: 17, design: .rounded))
+                        .foregroundColor(Color.white.opacity(0.5))
+                    Text(scoreLabel)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(scoreGood
+                            ? Color(red: 0.78, green: 0.94, blue: 0.20)
+                            : Color(red: 0.98, green: 0.78, blue: 0.45))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 3)
+                        .background(
+                            scoreGood
+                                ? Color(red: 0.78, green: 0.94, blue: 0.20).opacity(0.18)
+                                : Color(red: 0.98, green: 0.78, blue: 0.45).opacity(0.18)
+                        )
+                        .cornerRadius(20)
+                }
+                .padding(.bottom, 8)
+                Spacer()
+            }
+            .padding(.bottom, 14)
+
+            Rectangle()
+                .fill(Color.white.opacity(0.12))
+                .frame(height: 0.5)
+                .padding(.bottom, 14)
+
+            HStack(spacing: 0) {
+                TrackHeroChip(
+                    label: "Motility",
+                    value: test.totalMobility.map { "\(Int($0))%" } ?? "—",
+                    good: (test.totalMobility ?? 0) >= 40
+                )
+                Spacer()
+                TrackHeroChip(
+                    label: "Conc.",
+                    value: test.spermConcentration.map { "\(Int($0))M" } ?? "—",
+                    good: (test.spermConcentration ?? 0) >= 16
+                )
+                Spacer()
+                TrackHeroChip(
+                    label: "Morph.",
+                    value: test.morphologyRate.map { "\(Int($0))%" } ?? "—",
+                    good: (test.morphologyRate ?? 0) >= 4
+                )
+                Spacer()
+                TrackHeroChip(
+                    label: "DNA",
+                    value: test.dnaFragmentationRisk.map { "\($0)%" } ?? "—",
+                    good: (test.dnaFragmentationRisk ?? 100) < 30
+                )
+            }
+            .padding(.bottom, 14)
+
+            Text("Most recent test · Based on WHO 6th Edition")
+                .font(.system(size: 13, design: .rounded))
+                .foregroundColor(Color.white.opacity(0.6))
+        }
+        .padding(20)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "#016eef"),
+                    Color(hex: "#00c2ff")
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(20)
+    }
+}
+
+private struct TrackHeroChip: View {
+    let label: String
+    let value: String
+    let good: Bool
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+            Text(label)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+                .foregroundColor(Color.white.opacity(0.75))
+            Circle()
+                .fill(good
+                    ? Color(red: 0.78, green: 0.94, blue: 0.20)
+                    : Color(red: 0.98, green: 0.78, blue: 0.45))
+                .frame(width: 5, height: 5)
+        }
+    }
+}
+
+// MARK: - Track Insight Banner
+struct TrackInsightBanner: View {
+    let test: TestData
+
+    private var insightText: String {
+        let motilityOK = (test.totalMobility ?? 0) >= 40
+        let concOK     = (test.spermConcentration ?? 0) >= 16
+        let morphOK    = (test.morphologyRate ?? 0) >= 4
+        let dnaOK      = (test.dnaFragmentationRisk ?? 100) < 30
+
+        if motilityOK && concOK && morphOK && dnaOK {
+            return "All four key metrics are above WHO thresholds. Keep up your current habits and retest in 77 days."
+        } else if motilityOK && concOK && !morphOK {
+            return "Your motility and concentration are both above WHO thresholds. Focus on maintaining these while improving morphology."
+        } else if !motilityOK && concOK {
+            return "Your concentration is strong, but motility needs a boost. Regular exercise and reducing stress can improve sperm movement over 2–3 cycles."
+        } else if motilityOK && !concOK {
+            return "Your motility is good, but concentration is below WHO range. Zinc, selenium, and sleep quality are key levers to improve count."
+        } else if !dnaOK {
+            return "DNA fragmentation is elevated. Antioxidants like CoQ10 and vitamin C can lower fragmentation risk over 70–90 days."
+        } else {
+            return "Several parameters need attention. Small, consistent lifestyle changes compound quickly — retest in 77 days to track your progress."
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "lightbulb.fill")
+                .font(.system(size: 18))
+                .foregroundColor(.fathrBlue)
+                .padding(.top, 1)
+
+            Text(insightText)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundColor(.fathrBlue)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.fathrBlueLight)
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.fathrBlueMid, lineWidth: 0.5)
+        )
     }
 }
 
@@ -54,7 +247,7 @@ struct NextTestProgressBarView: View {
     @EnvironmentObject var testStore: TestStore
     @Binding var showTestInput: Bool
 
-    private let regenerationDays = 77 // Sperm regeneration cycle
+    private let regenerationDays = 77
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -74,10 +267,12 @@ struct NextTestProgressBarView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ProgressView(value: progress)
                         .progressViewStyle(.linear)
-                        .tint(Color(hex: "#00ff1d")) // Filled color: bright green
-                        .background(Color.white) // Unfilled color: white
+                        .tint(Color(hex: "#00ff1d"))
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
-                    Text(isOverdue ? "You're overdue — take your next test now to track progress." : "\(daysLeft) days until next fertility test. Good work!")
+                    Text(isOverdue
+                        ? "You're overdue — take your next test now to track progress."
+                        : "\(daysLeft) days until next fertility test. Good work!")
                         .font(.subheadline)
                         .fontDesign(.rounded)
                         .foregroundColor(isOverdue ? .red : .white)
@@ -96,16 +291,7 @@ struct NextTestProgressBarView: View {
                     }
                 }
                 .padding()
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color(hex: "#016eef"),
-                            Color(hex: "#00c2ff")
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .background(Color(hex: "#0D0D0F"))
                 .cornerRadius(15)
                 .padding(.horizontal)
             }
@@ -113,36 +299,7 @@ struct NextTestProgressBarView: View {
     }
 
     private func daysSince(date: Date) -> Int {
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.day], from: date, to: Date())
-        return components.day ?? 0
-    }
-}
-
-// Extension to support hex color initialization
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
+        Calendar.current.dateComponents([.day], from: date, to: Date()).day ?? 0
     }
 }
 
@@ -157,7 +314,6 @@ struct SummaryCardsView: View {
         "DNA Fragmentation": false
     ]
 
-    // Define Averages struct locally to avoid DashboardView dependency
     private struct Averages {
         let overallScore: Double
         let motility: Double
@@ -180,7 +336,9 @@ struct SummaryCardsView: View {
                 SummaryCardView(
                     title: "Analysis",
                     score: averages.spermAnalysis,
-                    summary: latestTest.analysisStatus == "Typical" ? "Normal range, excellent semen quality." : "Needs attention, consult a specialist.",
+                    summary: latestTest.analysisStatus == "Typical"
+                        ? "Normal range, excellent semen quality."
+                        : "Needs attention, consult a specialist.",
                     isExpanded: Binding(
                         get: { expandedCards["Analysis"] ?? false },
                         set: { expandedCards["Analysis"] = $0 }
@@ -197,7 +355,9 @@ struct SummaryCardsView: View {
                 SummaryCardView(
                     title: "Motility",
                     score: averages.motility,
-                    summary: (latestTest.totalMobility ?? 0) >= 40 ? "Normal range, great sperm movement." : "Below normal, aim for ≥40%.",
+                    summary: (latestTest.totalMobility ?? 0) >= 40
+                        ? "Normal range, great sperm movement."
+                        : "Below normal, aim for ≥40%.",
                     isExpanded: Binding(
                         get: { expandedCards["Motility"] ?? false },
                         set: { expandedCards["Motility"] = $0 }
@@ -214,7 +374,9 @@ struct SummaryCardsView: View {
                 SummaryCardView(
                     title: "Concentration",
                     score: averages.concentration,
-                    summary: (latestTest.spermConcentration ?? 0) >= 15 ? "Normal range, strong sperm count." : "Below normal, aim for ≥15 M/mL.",
+                    summary: (latestTest.spermConcentration ?? 0) >= 15
+                        ? "Normal range, strong sperm count."
+                        : "Below normal, aim for ≥15 M/mL.",
                     isExpanded: Binding(
                         get: { expandedCards["Concentration"] ?? false },
                         set: { expandedCards["Concentration"] = $0 }
@@ -231,7 +393,9 @@ struct SummaryCardsView: View {
                 SummaryCardView(
                     title: "Morphology",
                     score: averages.morphology,
-                    summary: (latestTest.morphologyRate ?? 0) >= 4 ? "Normal range, good sperm structure." : "Below normal, aim for ≥4%.",
+                    summary: (latestTest.morphologyRate ?? 0) >= 4
+                        ? "Normal range, good sperm structure."
+                        : "Below normal, aim for ≥4%.",
                     isExpanded: Binding(
                         get: { expandedCards["Morphology"] ?? false },
                         set: { expandedCards["Morphology"] = $0 }
@@ -248,7 +412,9 @@ struct SummaryCardsView: View {
                 SummaryCardView(
                     title: "DNA Fragmentation",
                     score: averages.dnaFragmentation,
-                    summary: (latestTest.dnaFragmentationRisk ?? 0) <= 15 ? "Low risk, healthy sperm DNA." : "Moderate/high risk, aim for <15%.",
+                    summary: (latestTest.dnaFragmentationRisk ?? 0) <= 15
+                        ? "Low risk, healthy sperm DNA."
+                        : "Moderate/high risk, aim for <15%.",
                     isExpanded: Binding(
                         get: { expandedCards["DNA Fragmentation"] ?? false },
                         set: { expandedCards["DNA Fragmentation"] = $0 }
@@ -341,16 +507,6 @@ struct SummaryCardsView: View {
             .shadow(radius: 2)
             .padding(.horizontal)
         }
-
-        private func scoreColor(score: Double) -> Color {
-            switch score {
-            case 0..<50: return .red
-            case 50..<70: return .orange
-            case 70..<85: return .yellow
-            case 85...100: return .green
-            default: return .gray
-            }
-        }
     }
 
     private func calculateAverages() -> Averages {
@@ -358,7 +514,6 @@ struct SummaryCardsView: View {
         guard count > 0 else {
             return Averages(overallScore: 0, motility: 0, concentration: 0, morphology: 0, dnaFragmentation: 0, spermAnalysis: 0)
         }
-
         let totalMotility = testStore.tests.reduce(0.0) { $0 + min(($1.totalMobility ?? 0.0) * 2.5, 100.0) }
         let totalConcentration = testStore.tests.reduce(0.0) {
             let conc = $1.spermConcentration ?? 0.0
@@ -370,30 +525,22 @@ struct SummaryCardsView: View {
             let score = morph <= 4.0 ? (morph / 4.0) * 50.0 : 50.0 + ((morph - 4.0) / 11.0) * 50.0
             return $0 + min(score, 100.0)
         }
-        let totalDnaFragmentation = testStore.tests.reduce(0.0) {
+        let totalDna = testStore.tests.reduce(0.0) {
             let dna = Double($1.dnaFragmentationRisk ?? 0)
-            let score = max(100.0 - ((dna / 15.0) * 50.0), 0.0)
-            return $0 + score
+            return $0 + max(100.0 - ((dna / 15.0) * 50.0), 0.0)
         }
-        let totalSpermAnalysis = testStore.tests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
+        let totalAnalysis = testStore.tests.reduce(0.0) { $0 + calculateAnalysisScore($1) }
 
         let avgMotility = totalMotility / Double(count)
         let avgConcentration = totalConcentration / Double(count)
         let avgMorphology = totalMorphology / Double(count)
-        let avgDnaFragmentation = totalDnaFragmentation / Double(count)
-        let avgSpermAnalysis = totalSpermAnalysis / Double(count)
+        let avgDna = totalDna / Double(count)
+        let avgAnalysis = totalAnalysis / Double(count)
+        let overall = (0.35 * avgMotility) + (0.30 * avgConcentration) + (0.15 * avgMorphology) +
+                      (0.10 * avgDna) + (0.10 * avgAnalysis)
 
-        let overallScore = (0.35 * avgMotility) + (0.30 * avgConcentration) + (0.15 * avgMorphology) +
-                           (0.10 * avgDnaFragmentation) + (0.10 * avgSpermAnalysis)
-
-        return Averages(
-            overallScore: overallScore,
-            motility: avgMotility,
-            concentration: avgConcentration,
-            morphology: avgMorphology,
-            dnaFragmentation: avgDnaFragmentation,
-            spermAnalysis: avgSpermAnalysis
-        )
+        return Averages(overallScore: overall, motility: avgMotility, concentration: avgConcentration,
+                        morphology: avgMorphology, dnaFragmentation: avgDna, spermAnalysis: avgAnalysis)
     }
 
     private func calculateAnalysisScore(_ test: TestData) -> Double {
@@ -401,7 +548,7 @@ struct SummaryCardsView: View {
         if test.appearance == .normal { score += 25 }
         if test.liquefaction == .normal { score += 25 }
         if let pH = test.pH, pH >= 7.2 && pH <= 8.0 { score += 25 }
-        if let semenQuantity = test.semenQuantity, semenQuantity >= 1.4 { score += 25 }
+        if let sq = test.semenQuantity, sq >= 1.4 { score += 25 }
         return score
     }
 }
@@ -418,256 +565,204 @@ struct RecentResultsBreakdownView: View {
                 .fontWeight(.bold)
                 .padding(.horizontal)
 
-            if let latestTest = testStore.tests.first {
-                // Analysis Metrics
-                Group {
-                    Text("Analysis")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                    StatusBox(
-                        title: "Appearance",
-                        status: latestTest.appearance?.rawValue.capitalized ?? "Not Provided",
-                        description: "Normal is clear or white."
-                    )
-                    StatusBox(
-                        title: "Liquefaction",
-                        status: latestTest.liquefaction?.rawValue.capitalized ?? "Not Provided",
-                        description: "Normal aids sperm movement."
-                    )
-                    StatusBox(
-                        title: "Consistency",
-                        status: latestTest.consistency?.rawValue.capitalized ?? "Not Provided",
-                        description: "Medium is typical."
-                    )
-                    ProgressStatusBox(
-                        title: "Semen Quantity",
-                        value: latestTest.semenQuantity ?? 0.0,
-                        maxValue: 10.0,
-                        unit: "mL",
-                        whoRange: 1.4...6.0,
-                        description: "WHO: 1.4–6.0 mL.",
-                        isAvailable: latestTest.semenQuantity != nil
-                    )
-                    ProgressStatusBox(
-                        title: "pH",
-                        value: latestTest.pH ?? 0.0,
-                        maxValue: 14.0,
-                        unit: "",
-                        whoRange: 7.2...8.0,
-                        description: "WHO: 7.2–8.0.",
-                        isAvailable: latestTest.pH != nil
-                    )
-                }
+            if let t = testStore.tests.first {
 
-                // Motility Metrics
-                Group {
-                    Text("Motility")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                    ProgressStatusBox(
-                        title: "Total Mobility",
-                        value: latestTest.totalMobility ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        whoRange: 40.0...100.0,
-                        description: "WHO: ≥40%.",
-                        isAvailable: latestTest.totalMobility != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Progressive Mobility",
-                        value: latestTest.progressiveMobility ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        whoRange: 30.0...100.0,
-                        description: "WHO: ≥30%.",
-                        isAvailable: latestTest.progressiveMobility != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Non-Progressive Mobility",
-                        value: latestTest.nonProgressiveMobility ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Lower values are common.",
-                        isAvailable: latestTest.nonProgressiveMobility != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Travel Speed",
-                        value: latestTest.travelSpeed ?? 0.0,
-                        maxValue: 1.0,
-                        unit: "mm/sec",
-                        description: "Higher speeds are better.",
-                        isAvailable: latestTest.travelSpeed != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Mobility Index",
-                        value: latestTest.mobilityIndex ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Higher values are better.",
-                        isAvailable: latestTest.mobilityIndex != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Still",
-                        value: latestTest.still ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Lower values are better.",
-                        isAvailable: latestTest.still != nil
-                    )
-                    StatusBox(
-                        title: "Agglutination",
-                        status: latestTest.agglutination?.rawValue.capitalized ?? "Not Provided",
-                        description: "Mild or none is normal."
-                    )
-                }
+                // Analysis
+                FathrSectionHeader(title: "Analysis", subtitle: "Physical properties of the sample")
+                    .padding(.horizontal)
 
-                // Concentration Metrics
-                Group {
-                    Text("Concentration")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                    ProgressStatusBox(
-                        title: "Sperm Concentration",
-                        value: latestTest.spermConcentration ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "M/mL",
-                        whoRange: 16.0...100.0,
-                        description: "WHO: ≥16 M/mL.",
-                        isAvailable: latestTest.spermConcentration != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Total Spermatozoa",
-                        value: latestTest.totalSpermatozoa ?? 0.0,
-                        maxValue: 200.0,
-                        unit: "M/mL",
-                        whoRange: 39.0...200.0,
-                        description: "WHO: ≥39 M/mL.",
-                        isAvailable: latestTest.totalSpermatozoa != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Functional Spermatozoa",
-                        value: latestTest.functionalSpermatozoa ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "M/mL",
-                        description: "Higher counts are better.",
-                        isAvailable: latestTest.functionalSpermatozoa != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Round Cells",
-                        value: latestTest.roundCells ?? 0.0,
-                        maxValue: 10.0,
-                        unit: "M/mL",
-                        whoRange: 0.0...1.0,
-                        description: "WHO: <1 M/mL.",
-                        isAvailable: latestTest.roundCells != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Leukocytes",
-                        value: latestTest.leukocytes ?? 0.0,
-                        maxValue: 5.0,
-                        unit: "M/mL",
-                        whoRange: 0.0...1.0,
-                        description: "WHO: <1 M/mL.",
-                        isAvailable: latestTest.leukocytes != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Live Spermatozoa",
-                        value: latestTest.liveSpermatozoa ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        whoRange: 50.0...100.0,
-                        description: "WHO: ≥50%.",
-                        isAvailable: latestTest.liveSpermatozoa != nil
-                    )
-                }
+                FathrStatusCard(title: "Appearance",
+                                status: t.appearance?.rawValue.capitalized ?? "Not Provided",
+                                description: "Normal is clear or white.",
+                                isAvailable: t.appearance != nil)
+                    .padding(.horizontal)
 
-                // Morphology Metrics
-                Group {
-                    Text("Morphology")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                    ProgressStatusBox(
-                        title: "Morphology Rate",
-                        value: latestTest.morphologyRate ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        whoRange: 4.0...100.0,
-                        description: "WHO: ≥4%.",
-                        isAvailable: latestTest.morphologyRate != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Pathology",
-                        value: latestTest.pathology ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Lower percentages are better.",
-                        isAvailable: latestTest.pathology != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Head Defect",
-                        value: latestTest.headDefect ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Fewer defects are better.",
-                        isAvailable: latestTest.headDefect != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Neck Defect",
-                        value: latestTest.neckDefect ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Fewer defects are better.",
-                        isAvailable: latestTest.neckDefect != nil
-                    )
-                    ProgressStatusBox(
-                        title: "Tail Defect",
-                        value: latestTest.tailDefect ?? 0.0,
-                        maxValue: 100.0,
-                        unit: "%",
-                        description: "Fewer defects are better.",
-                        isAvailable: latestTest.tailDefect != nil
-                    )
-                }
+                FathrStatusCard(title: "Liquefaction",
+                                status: t.liquefaction?.rawValue.capitalized ?? "Not Provided",
+                                description: "Normal aids sperm movement.",
+                                isAvailable: t.liquefaction != nil)
+                    .padding(.horizontal)
 
-                // DNA Fragmentation Metrics
-                Group {
-                    Text("DNA Fragmentation")
-                        .font(.title3)
-                        .fontDesign(.rounded)
-                        .fontWeight(.bold)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                    ProgressStatusBox(
-                        title: "DNA Fragmentation Risk",
-                        value: Double(latestTest.dnaFragmentationRisk ?? 0),
-                        maxValue: 100.0,
-                        unit: "%",
-                        whoRange: 0.0...30.0,
-                        description: "Lower is better (<30%).",
-                        isAvailable: latestTest.dnaFragmentationRisk != nil
-                    )
-                    StatusBox(
-                        title: "DNA Risk Category",
-                        status: latestTest.dnaRiskCategory ?? "Unknown",
-                        description: "Low risk is best."
-                    )
-                }
+                FathrStatusCard(title: "Consistency",
+                                status: t.consistency?.rawValue.capitalized ?? "Not Provided",
+                                description: "Medium is typical.",
+                                isAvailable: t.consistency != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Semen Quantity",
+                                value: t.semenQuantity ?? 0, maxValue: 10, unit: "mL",
+                                whoRange: 1.4...6.0,
+                                description: { v in v >= 1.4 && v <= 6.0 ? "Within WHO range of 1.4–6.0 mL." : "Outside WHO range of 1.4–6.0 mL." },
+                                isAvailable: t.semenQuantity != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "pH",
+                                value: t.pH ?? 0, maxValue: 14, unit: "",
+                                whoRange: 7.2...8.0,
+                                description: { v in v >= 7.2 && v <= 8.0 ? "Within the optimal pH range of 7.2–8.0." : "Outside the optimal pH range of 7.2–8.0." },
+                                isAvailable: t.pH != nil)
+                    .padding(.horizontal)
+
+                // Motility
+                FathrSectionHeader(title: "Motility", subtitle: "How well sperm move and swim")
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Total Mobility",
+                                value: t.totalMobility ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 40.0...100.0,
+                                description: { v in v >= 40 ? "Above WHO threshold of 40%." : "Below WHO threshold of 40%." },
+                                isAvailable: t.totalMobility != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Progressive Mobility",
+                                value: t.progressiveMobility ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 30.0...100.0,
+                                description: { v in v >= 30 ? "Above WHO minimum of 30%." : "Below WHO minimum of 30%." },
+                                isAvailable: t.progressiveMobility != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Non-Progressive Mobility",
+                                value: t.nonProgressiveMobility ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...10.0,
+                                description: { v in v <= 10 ? "Within the normal range of under 10%." : "Above the typical 10% threshold." },
+                                isAvailable: t.nonProgressiveMobility != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Travel Speed",
+                                value: t.travelSpeed ?? 0, maxValue: 1.0, unit: "mm/sec",
+                                goodThreshold: 0.025,
+                                description: { v in v >= 0.025 ? "Normal travel speed." : "Below normal travel speed of 0.025 mm/sec." },
+                                isAvailable: t.travelSpeed != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Mobility Index",
+                                value: t.mobilityIndex ?? 0, maxValue: 100, unit: "%",
+                                goodThreshold: 60.0,
+                                description: { v in v >= 60 ? "Healthy mobility index." : "Below the 60% benchmark." },
+                                isAvailable: t.mobilityIndex != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Still",
+                                value: t.still ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...60.0,
+                                description: { v in v <= 60 ? "Within normal range of under 60%." : "Above 60% — more sperm than typical are stationary." },
+                                isAvailable: t.still != nil)
+                    .padding(.horizontal)
+
+                FathrStatusCard(title: "Agglutination",
+                                status: t.agglutination?.rawValue.capitalized ?? "Not Provided",
+                                description: "Mild or none is normal.",
+                                isAvailable: t.agglutination != nil)
+                    .padding(.horizontal)
+
+                // Concentration
+                FathrSectionHeader(title: "Concentration", subtitle: "Number of sperm in the sample")
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Sperm Concentration",
+                                value: t.spermConcentration ?? 0, maxValue: 100, unit: "M/mL",
+                                whoRange: 16.0...100.0,
+                                description: { v in v >= 16 ? "Above WHO minimum of 16 M/mL." : "Below WHO minimum of 16 M/mL." },
+                                isAvailable: t.spermConcentration != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Total Spermatozoa",
+                                value: t.totalSpermatozoa ?? 0, maxValue: 200, unit: "M/mL",
+                                whoRange: 39.0...200.0,
+                                description: { v in v >= 39 ? "Above WHO threshold of 39 M/mL." : "Below WHO threshold of 39 M/mL." },
+                                isAvailable: t.totalSpermatozoa != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Functional Spermatozoa",
+                                value: t.functionalSpermatozoa ?? 0, maxValue: 100, unit: "M/mL",
+                                goodThreshold: 10.0,
+                                description: { v in v >= 10 ? "Above the 10 M/mL healthy benchmark." : "Below the 10 M/mL healthy benchmark." },
+                                isAvailable: t.functionalSpermatozoa != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Round Cells",
+                                value: t.roundCells ?? 0, maxValue: 10, unit: "M/mL",
+                                whoRange: 0.0...1.0,
+                                description: { v in v <= 1 ? "Within WHO limit of <1 M/mL." : "Above WHO limit of 1 M/mL — may indicate inflammation." },
+                                isAvailable: t.roundCells != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Leukocytes",
+                                value: t.leukocytes ?? 0, maxValue: 5, unit: "M/mL",
+                                whoRange: 0.0...1.0,
+                                description: { v in v <= 1 ? "Within WHO limit of <1 M/mL." : "Above WHO limit — may signal infection." },
+                                isAvailable: t.leukocytes != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Live Spermatozoa",
+                                value: t.liveSpermatozoa ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 50.0...100.0,
+                                description: { v in v >= 50 ? "Above WHO minimum of 50%." : "Below WHO minimum of 50%." },
+                                isAvailable: t.liveSpermatozoa != nil)
+                    .padding(.horizontal)
+
+                // Morphology
+                FathrSectionHeader(title: "Morphology", subtitle: "Shape and structure of sperm")
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Morphology Rate",
+                                value: t.morphologyRate ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 4.0...100.0,
+                                description: { v in v >= 4 ? "Above WHO minimum of 4%." : "Below WHO minimum of 4%." },
+                                isAvailable: t.morphologyRate != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Pathology",
+                                value: t.pathology ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...96.0,
+                                description: { v in v <= 96 ? "Within the normal range of under 96%." : "Above the typical 96% threshold." },
+                                isAvailable: t.pathology != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Head Defect",
+                                value: t.headDefect ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...70.0,
+                                description: { v in v <= 70 ? "Within the typical range of under 70%." : "Above the typical 70% threshold." },
+                                isAvailable: t.headDefect != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Neck Defect",
+                                value: t.neckDefect ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...40.0,
+                                description: { v in v <= 40 ? "Within the typical range of under 40%." : "Above the typical 40% threshold." },
+                                isAvailable: t.neckDefect != nil)
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "Tail Defect",
+                                value: t.tailDefect ?? 0, maxValue: 100, unit: "%",
+                                whoRange: 0.0...20.0,
+                                description: { v in v <= 20 ? "Within the typical range of under 20%." : "Above the typical 20% threshold." },
+                                isAvailable: t.tailDefect != nil)
+                    .padding(.horizontal)
+
+                // DNA Fragmentation
+                FathrSectionHeader(title: "DNA Fragmentation", subtitle: "Damage to sperm DNA")
+                    .padding(.horizontal)
+
+                FathrMetricCard(title: "DNA Fragmentation Risk",
+                                value: Double(t.dnaFragmentationRisk ?? 0), maxValue: 100, unit: "%",
+                                whoRange: 0.0...30.0,
+                                description: { v in v < 30 ? "Low/moderate risk — under the 30% threshold." : "High risk — consider consulting a specialist." },
+                                isAvailable: t.dnaFragmentationRisk != nil)
+                    .padding(.horizontal)
+
+                FathrStatusCard(title: "DNA Risk Category",
+                                status: t.dnaRiskCategory ?? "Unknown",
+                                description: "Low risk is best for fertility.",
+                                isAvailable: t.dnaRiskCategory != nil)
+                    .padding(.horizontal)
             }
         }
+        .padding(.bottom, 24)
     }
 }
 
+// MARK: - Preview
 struct TrackView_Previews: PreviewProvider {
     static var previews: some View {
         let testStore = TestStore()

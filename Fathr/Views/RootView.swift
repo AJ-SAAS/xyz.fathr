@@ -55,8 +55,16 @@ struct RootView: View {
 
         // MARK: Auth listener
         .onChange(of: authManager.user) { _, user in
-            guard user != nil else { return }
-            loadOnboardingStatus()
+            if let user = user {
+                // User signed in — load their onboarding status
+                print("✅ Auth changed: \(user.uid)")
+                loadOnboardingStatus()
+            } else {
+                // User signed out — route back to AuthView
+                print("🔒 User signed out — returning to AuthView")
+                hasCompletedOnboarding = true  // skip onboarding
+                showAuth = true                 // show auth screen
+            }
         }
 
         .onAppear {
@@ -83,7 +91,7 @@ struct RootView: View {
             .collection("users")
             .document(uid)
             .getDocument { snapshot, error in
-                
+
                 if let data = snapshot?.data(),
                    let completed = data["hasCompletedOnboarding"] as? Bool {
                     DispatchQueue.main.async {
